@@ -62,3 +62,40 @@ export function pareceTelaCheia({ fullscreenElement, displayModeFullscreen, inne
   if (!screenWidth || !screenHeight) return false;
   return Math.abs(innerWidth - screenWidth) <= 2 && Math.abs(innerHeight - screenHeight) <= 2;
 }
+
+/**
+ * Por quem vale a pena esperar antes de começar.
+ * Quem já falhou o download (ou não tem codec) não vai ficar pronto: ele vê a
+ * cena pela rede, e o resto da mesa não fica 25 s à espera dele.
+ */
+export function quemAguardar(audiencia, inventario, relatos, itemId) {
+  return quemFalta(audiencia, inventario, itemId).filter(id => {
+    const r = relatos.get(id);
+    return !(r && r.itemId === itemId && (r.phase === "failed" || r.phase === "nocodec"));
+  });
+}
+
+/**
+ * Que versão da cutscene este computador toca.
+ *
+ * A regra é nunca perder qualidade visível: o original vai para quem o
+ * consegue tocar com fluidez E tem ecrã para o mostrar. A versão leve vai
+ * para quem sofreria com o original, ou para quem nem veria a diferença.
+ *
+ * @param {object} o
+ * @param {boolean} o.temLeve       a cutscene tem versão leve?
+ * @param {"auto"|"leve"|"original"} o.preferencia   escolha do jogador
+ * @param {boolean} o.lembrarLeve   este computador já perdeu muitos quadros antes
+ * @param {boolean|undefined} o.suave      o navegador diz que decodifica o original sem engasgar
+ * @param {boolean|undefined} o.eficiente  …e com hardware (não CPU)
+ * @param {number} o.alturaTela     pixels físicos do ecrã
+ * @param {number} [o.alturaLeve]   altura da versão leve
+ */
+export function escolherVersao({ temLeve, preferencia = "auto", lembrarLeve = false, suave, eficiente, alturaTela, alturaLeve = 1080 }) {
+  if (!temLeve) return "original";
+  if (preferencia === "leve" || preferencia === "original") return preferencia;
+  if (lembrarLeve) return "leve";
+  if (suave === false || eficiente === false) return "leve";
+  if (alturaTela && alturaTela <= alturaLeve * 1.1) return "leve";      // o 4K seria peso invisível
+  return "original";
+}

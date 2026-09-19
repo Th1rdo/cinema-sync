@@ -1,7 +1,7 @@
 import { MODULE_ID, MSG, PHASE, log, warn } from "./const.js";
 import { enviar } from "./net.js";
 import { guardar, temGuardado, esquecer, suportaCodec, urlParaTocar, soltar } from "./preload.js";
-import { nomeDoArquivo } from "./logica.js";
+import { nomeDoArquivo, escolherVersao } from "./logica.js";
 
 /**
  * A biblioteca de cutscenes: o que está salvo, o que cada cliente já tem em
@@ -65,7 +65,7 @@ export async function remover(id) {
   const item = obter(id);
   await gravar(itens().filter(i => i.id !== id));
   localStorage.removeItem(chaveMiniatura(id));
-  if (item) enviar(MSG.ESQUECER, { src: item.src }, { local: true });
+  if (item) for (const src of [item.src, item.srcLeve].filter(Boolean)) enviar(MSG.ESQUECER, { src }, { local: true });
 }
 
 // ------------------------------------------------------------------ miniaturas
@@ -121,6 +121,55 @@ async function gerarMiniatura(item) {
   }
 }
 
+// ------------------------------------------------------------------ versão
+const CHAVE_LEMBRAR = `${MODULE_ID}.lembrarLeve`;
+const decisoes = new Map();    // itemId → { src, versao }: pré-carga e exibição concordam
+
+/** O navegador deste computador toca o original com fluidez, e por hardware? */
+async function capacidade(item) {
+  const mc = navigator.mediaCapabilities;
+  if (!mc?.decodingInfo || !item.largura || !item.altura) return {};
+  const webm = /\.webm($|\?)/i.test(item.src);
+  try {
+    const r = await mc.decodingInfo({
+      type: "file",
+      video: {
+        contentType: webm ? 'video/webm; codecs="vp09.00.51.08"' : 'video/mp4; codecs="avc1.640033"',
+        width: item.largura, height: item.altura,
+        bitrate: item.largura * item.altura >= 3840 * 2160 ? 20_000_000 : 8_000_000,
+        framerate: 30
+      }
+    });
+    return { suave: r.smooth, eficiente: r.powerEfficient };
+  } catch { return {}; }
+}
+
+/** Qual ficheiro este computador usa para este item. */
+export async function srcParaEste(item) {
+  if (decisoes.has(item.id)) return decisoes.get(item.id);
+  const { suave, eficiente } = item.srcLeve ? await capacidade(item) : {};
+  const versao = escolherVersao({
+    temLeve: !!item.srcLeve,
+    preferencia: game.settings.get(MODULE_ID, "qualidade"),
+    lembrarLeve: localStorage.getItem(CHAVE_LEMBRAR) === "1",
+    suave, eficiente,
+    alturaTela: Math.round((globalThis.screen?.height ?? 0) * (globalThis.devicePixelRatio ?? 1)),
+    alturaLeve: item.alturaLeve ?? 1080
+  });
+  const decisao = { src: versao === "leve" ? item.srcLeve : item.src, versao };
+  decisoes.set(item.id, decisao);
+  return decisao;
+}
+
+/** Este computador perdeu muitos quadros no original: daí em diante, leve. */
+export function lembrarQueSofreu() {
+  localStorage.setItem(CHAVE_LEMBRAR, "1");
+  decisoes.clear();
+}
+
+/** A biblioteca mudou (item editado, versão leve adicionada): decide de novo. */
+export const esquecerDecisoes = () => decisoes.clear();
+
 // ------------------------------------------------------------------ cliente
 /** Estou na audiência deste item? (o mestre só se for assistir na janela) */
 export function souAudiencia(item, audienciaDaExibicao = null) {
@@ -132,26 +181,32 @@ export function souAudiencia(item, audienciaDaExibicao = null) {
 /** Conta ao mestre o que este cliente já tem em disco. */
 export async function relatarInventario() {
   const ids = [];
-  for (const item of itens()) if (await temGuardado(item.src)) ids.push(item.id);
+  for (const item of itens()) if (await temGuardado((await srcParaEste(item)).src)) ids.push(item.id);
   enviar(MSG.INVENTARIO, { userId: game.user.id, ids }, { local: game.user.isGM });
 }
 
-/** Baixa um item, reportando progresso ao mestre. */
+/** Baixa um item (na versão deste computador), reportando progresso ao mestre. */
 export async function baixar(item) {
+  const { src, versao } = await srcParaEste(item);
   const reportar = (phase, extra = {}) =>
-    enviar(MSG.STATUS, { itemId: item.id, userId: game.user.id, phase, ...extra }, { local: game.user.isGM });
+    enviar(MSG.STATUS, { itemId: item.id, userId: game.user.id, phase, versao, ...extra }, { local: game.user.isGM });
 
-  if (!suportaCodec(item.src)) return reportar(PHASE.NOCODEC, { erro: "navegador não toca este formato" });
+  if (!suportaCodec(src)) return reportar(PHASE.NOCODEC, { erro: "este navegador não toca este formato" });
 
-  let ultimo = -1;
+  let ultimoPct = -1, ultimosBytes = 0;
   try {
     reportar(PHASE.LOADING, { pct: 0 });
-    await guardar(item.src, (pct) => {
-      if (pct - ultimo >= 0.1 || pct === 1) { ultimo = pct; reportar(PHASE.LOADING, { pct }); }
+    await guardar(src, (pct, bytes) => {
+      const passou = pct === null ? bytes - ultimosBytes >= 16e6 : pct - ultimoPct >= 0.1 || pct === 1;
+      if (!passou) return;
+      ultimoPct = pct ?? ultimoPct;
+      ultimosBytes = bytes;
+      reportar(PHASE.LOADING, { pct, mb: Math.round(bytes / 1e6) });
     });
     reportar(PHASE.READY, { pct: 1, somBloqueado: !!game.audio?.locked });
   } catch (err) {
-    reportar(PHASE.FAILED, { erro: err.message });
+    console.error(`${MODULE_ID} | download falhou (${src})`, err);
+    reportar(PHASE.FAILED, { erro: err.message || String(err) });
   }
 }
 
@@ -167,7 +222,7 @@ export async function filaDeFundo() {
   try {
     for (const item of itens()) {
       if (!item.preCarregar || !souAudiencia(item)) continue;
-      if (await temGuardado(item.src)) continue;
+      if (await temGuardado((await srcParaEste(item)).src)) continue;
       log(`pré-carregando em segundo plano: ${item.nome}`);
       await baixar(item);
     }

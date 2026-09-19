@@ -13,6 +13,7 @@ Hooks.once("init", () => {
   game.settings.register(MODULE_ID, "biblioteca", {
     scope: "world", config: false, type: Object, default: { itens: [] },
     onChange: () => {
+      bib.esquecerDecisoes();            // pode ter ganho versão leve: cada computador decide de novo
       bib.filaDeFundo();                 // item novo marcado para pré-carregar: começa a baixar
       if (game.user.isGM) Cinema.atualizar();
     }
@@ -22,6 +23,17 @@ Hooks.once("init", () => {
     name: "CINEMA.Config.Volume", hint: "CINEMA.Config.VolumeHint",
     scope: "client", config: true, type: Number, default: 0.8,
     range: { min: 0, max: 1, step: 0.05 }
+  });
+
+  game.settings.register(MODULE_ID, "qualidade", {
+    name: "CINEMA.Config.Qualidade", hint: "CINEMA.Config.QualidadeHint",
+    scope: "client", config: true, type: String, default: "auto",
+    choices: {
+      auto: "CINEMA.Config.QualidadeAuto",
+      leve: "CINEMA.Config.QualidadeLeve",
+      original: "CINEMA.Config.QualidadeOriginal"
+    },
+    onChange: () => bib.esquecerDecisoes()
   });
 
   game.settings.register(MODULE_ID, "mestreAssiste", {

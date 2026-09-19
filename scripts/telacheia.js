@@ -10,8 +10,7 @@ import { pareceTelaCheia } from "./logica.js";
  * - ativação transitória: clicou há poucos segundos. É o que a TELA CHEIA exige.
  * A separação é de segurança (um site em tela cheia pode desenhar um ecrã falso),
  * e nenhum módulo a contorna. Por isso a tela cheia só acontece quando o jogador
- * clica na cena — ou quando acabou de clicar no instante em que ela começou.
- * Nada aparece na tela a pedir o clique.
+ * clica no botão do canto da cena.
  */
 
 export function estaEmTelaCheia() {
@@ -24,9 +23,6 @@ export function estaEmTelaCheia() {
     screenHeight: globalThis.screen?.height
   });
 }
-
-/** O clique mais recente do jogador ainda vale para pedir tela cheia? */
-export const cliqueAindaVale = () => !!navigator.userActivation?.isActive;
 
 // ------------------------------------------------------------ relato ao mestre
 let ultimoRelato = null;

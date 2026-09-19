@@ -212,3 +212,13 @@ body.cinema-ativo > *:not(#cinema-sync-overlay) { visibility: hidden !important;
 }
 .cinema-presente.cheia { opacity: 1; border-color: #3fbf6f66; }
 .cinema-presente .fa-expand, .cinema-pessoa .cinema-cheia { color: #3fbf6f; font-size: .65rem; }
+
+/* versão leve, fluidez e falhas */
+.cinema-leve {
+  font-size: .6rem; letter-spacing: .06em; text-transform: uppercase;
+  padding: 0 .3rem; border-radius: 3px; border: 1px solid #ffffff40; opacity: .85;
+}
+.cinema-pessoa .fa-gauge-simple-low { color: #4a9fd4; }
+.cinema-falhou { color: #e0383e; }
+.cinema-erro-linha { margin: 0; font-size: .74rem; color: #ffb4b0; }
+.cinema-ajuda { margin: 0 0 .3rem; font-size: .75rem; opacity: .7; }

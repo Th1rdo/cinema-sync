@@ -2,7 +2,8 @@ import { MODULE_ID, MSG, PHASE, SYNC, warn } from "./const.js";
 import { enviar } from "./net.js";
 import { Reprodutor } from "./player.js";
 import { abaixarMusica, restaurarMusica, congelarCanvas, descongelarCanvas } from "./ambiente.js";
-import { estaEmTelaCheia, cliqueAindaVale } from "./telacheia.js";
+import { estaEmTelaCheia } from "./telacheia.js";
+import { srcParaEste, lembrarQueSofreu } from "./biblioteca.js";
 
 /**
  * A tela do jogador: preto, o filme, a mesa de volta.
@@ -31,24 +32,28 @@ class TelaDeCinema {
     congelarCanvas();
     abaixarMusica();
 
-    // o jogador acabou de clicar (moveu um token, abriu uma ficha)? o navegador
-    // ainda aceita o pedido: entra em tela cheia sem mostrar nada. Pedido feito
-    // já, antes de qualquer espera, enquanto o clique ainda vale.
+    // tela cheia só pelo botão do canto — nunca sozinha, nunca por um clique na cena
     this.#telaCheiaPermitida = item.pedirTelaCheia ?? true;
     root.querySelector(".cinema-btn-telacheia").hidden = !this.#telaCheiaPermitida;
-    if (this.#telaCheiaPermitida && cliqueAindaVale()) this.#entrarEmTelaCheia();
+
+    const { src, versao } = await srcParaEste(item);
+    if (this.#exibicao) this.#exibicao.versao = versao;     // pode ter sido encerrada durante a espera
+    let perdidos = 0;
 
     const volume = game.settings.get(MODULE_ID, "volume") * (item.volume ?? 1);
     this.#reprodutor = await Reprodutor.criar({
-      src: item.src,
+      src,
       palco: root.querySelector(".cinema-palco"),
       volume,
       mudo: !!game.audio?.locked,
       onRelato: (r) => {
         if (r.mudo) root.querySelector(".cinema-som").hidden = false;
+        if (r.perdidos !== undefined) perdidos = r.perdidos;
         this.#reportar(PHASE.PLAYING, r);
       },
       onFim: () => {
+        // o original pesou demais aqui: as próximas cenas usam a versão leve
+        if (versao === "original" && perdidos >= 25) lembrarQueSofreu();
         this.#reportar(PHASE.ENDED);
         if (game.settings.get(MODULE_ID, "fecharNoFim")) this.encerrar();
       }
@@ -65,13 +70,12 @@ class TelaDeCinema {
     }, Math.max(0, startAt - game.time.serverTime) + SYNC.START_TIMEOUT);
   }
 
-  /** Clique na cena: tela cheia (se esta cena permite) e som (se estava mudo). */
+  /** Clique na cena: só devolve o som, se o navegador o tinha bloqueado. */
   #aoClicar = () => {
     if (this.#reprodutor?.mudo) {
       this.#reprodutor.desmutar();
       this.#root.querySelector(".cinema-som").hidden = true;
     }
-    if (this.#telaCheiaPermitida) this.#entrarEmTelaCheia();
   };
 
   /** Só a cena vai para tela cheia, e ela é desfeita no fim: o alt-tab depois fica intocado. */
@@ -117,7 +121,7 @@ class TelaDeCinema {
 
   /** Esc: cada jogador pode sair da própria tela; o mestre vê "saiu". */
   #aoTeclar = (ev) => {
-    if (ev.key !== "Escape" || !this.#root || document.fullscreenElement) return;
+    if (ev.key !== "Escape" || !this.#root || document.fullscreenElement) return;   // 1.º Esc: sai da tela cheia
     this.#reportar(PHASE.LEFT);
     this.encerrar();
   };

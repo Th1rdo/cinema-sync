@@ -73,3 +73,48 @@ test("janela maximizada com barra de abas e menu não é tela cheia", () => {
 test("sem informação de tela, não arrisca", () => {
   assert.equal(pareceTelaCheia({ innerWidth: 1512, innerHeight: 982 }), false);
 });
+
+import { quemAguardar, escolherVersao } from "../scripts/logica.js";
+
+test("não espera por quem já falhou o download ou não tem codec", () => {
+  const inv = new Map([["ana", new Set(["x"])]]);
+  const relatos = new Map([
+    ["bia", { itemId: "x", phase: "failed" }],
+    ["caio", { itemId: "x", phase: "loading" }],
+    ["davi", { itemId: "outro", phase: "failed" }]      // falhou OUTRA cutscene: conta
+  ]);
+  assert.deepEqual(quemAguardar(["ana", "bia", "caio", "davi"], inv, relatos, "x"), ["caio", "davi"]);
+});
+
+const maquina = { temLeve: true, alturaTela: 1964, suave: true, eficiente: true };
+
+test("sem versão leve, sempre o original", () => {
+  assert.equal(escolherVersao({ ...maquina, temLeve: false, suave: false }), "original");
+});
+
+test("máquina forte e ecrã grande: original", () => {
+  assert.equal(escolherVersao(maquina), "original");
+});
+
+test("navegador diz que engasga ou decodifica por CPU: leve", () => {
+  assert.equal(escolherVersao({ ...maquina, suave: false }), "leve");
+  assert.equal(escolherVersao({ ...maquina, eficiente: false }), "leve");
+});
+
+test("ecrã de 1080p: leve, o 4K não se veria", () => {
+  assert.equal(escolherVersao({ ...maquina, alturaTela: 1080 }), "leve");
+  assert.equal(escolherVersao({ ...maquina, alturaTela: 1440 }), "original");   // 1440p já mostra mais que 1080p
+});
+
+test("computador que já sofreu: leve daí em diante", () => {
+  assert.equal(escolherVersao({ ...maquina, lembrarLeve: true }), "leve");
+});
+
+test("a escolha do jogador manda", () => {
+  assert.equal(escolherVersao({ ...maquina, preferencia: "leve" }), "leve");
+  assert.equal(escolherVersao({ ...maquina, suave: false, preferencia: "original" }), "original");
+});
+
+test("capacidade desconhecida não rebaixa ninguém", () => {
+  assert.equal(escolherVersao({ ...maquina, suave: undefined, eficiente: undefined }), "original");
+});

@@ -29,7 +29,7 @@ Em cada card:
 | ▶ | exibe para a audiência padrão |
 | 👤✓ | escolhe na hora quem vê (flashback de um personagem só) |
 | ⬇ | baixa agora para a audiência |
-| ⚙ | nome, quem assiste por padrão, pré-carregar ao entrar, tela cheia ao clicar, volume, remover |
+| ⚙ | nome, quem assiste, pré-carregar ao entrar, botão de tela cheia, volume, versão leve, remover |
 
 O card mostra quantos jogadores já têm o vídeo em disco (`4/5`) e avisa quando o vídeo é 4K.
 
@@ -53,32 +53,43 @@ Enquanto a cena passa, nos jogadores: o **canvas do Foundry sai do ar** (1 fps, 
 
 ## Tela cheia
 
-Nada aparece na tela a pedir tela cheia. Como num player de vídeo, **mexer o rato** mostra o
-cursor e um botão ⛶ no canto; dois segundos parado, somem. A cena vai para o ecrã inteiro quando o
-jogador:
+Só pelo botão. Como num player de vídeo, **mexer o rato** mostra o cursor e um ⛶ no canto inferior
+direito; dois segundos parado, somem. O mesmo botão tira da tela cheia. Nada entra em tela cheia
+sozinho, e clicar na cena não faz nada além de ligar o som (se o navegador o tinha bloqueado).
 
-- **clica no ⛶** (ou em qualquer lugar da cena), ou
-- **tinha acabado de clicar quando ela começou** (moveu um token, abriu uma ficha): entra sozinho,
-  sem mostrar nada.
+No ⚙ de cada cutscene dá para desligar o botão naquela cena.
 
-O mesmo botão tira da tela cheia.
+Para quem quer o ecrã inteiro sempre: abrir o Foundry como app no Chrome (⋮ → *Transmitir, guardar
+e partilhar* → *Instalar página como app*) ou no Edge (⋯ → *Apps* → *Instalar este site como app*).
+Janela sem abas nem barra de endereço, que se comporta como qualquer programa no alt-tab.
 
-A tela cheia é só da cena e é desfeita no fim — o alt-tab depois fica intocado. Quem não clicar vê
-a cena a encher a janela do navegador.
+## Versão leve — para quem não aguenta o 4K
 
-Por que não dá para mandar todos para tela cheia quando o mestre carrega no ▶: o navegador tem
-dois tipos de "o jogador já clicou". *Clicou alguma vez na sessão* vale a sessão inteira e é o que
-libera o som. *Clicou há poucos segundos* expira depressa e é o que a tela cheia exige — porque um
-site em tela cheia consegue desenhar um ecrã falso (um login, um banco) sem a barra do navegador
-para denunciar. Nenhum módulo contorna isto.
+Cada cutscene pode ter uma **versão leve** (o mesmo vídeo em 1080p), no ⚙. Com ela, cada computador
+escolhe sozinho:
 
-**Para quem quer o ecrã inteiro sempre, sem clicar:** abrir o Foundry como app. No Chrome, menu ⋮ →
-*Transmitir, guardar e partilhar* → *Instalar página como app* (no Edge: ⋯ → *Apps* → *Instalar
-este site como app*). Fica uma janela sem abas nem barra de endereço, que se comporta como qualquer
-programa no alt-tab — e a cutscene enche essa janela inteira.
+- **o original**, se o navegador diz que o toca com fluidez e por hardware, e o ecrã mostra mais que 1080p;
+- **a leve**, se sofreria com o original — ou se o ecrã é de 1080p e nem veria a diferença.
 
-No ⚙ de cada cutscene, *Tela cheia quando o jogador clica na cena* permite desligar a tela cheia
-naquela cena. Na janela Cinema, o mestre vê um ⛶ verde em quem já está a ver no ecrã inteiro.
+Um computador que perde mais de 25% dos quadros no original passa a usar a leve nas cenas seguintes.
+Cada jogador também pode forçar nas configurações (*Qualidade das cutscenes*). O painel mostra quem
+está a ver a leve.
+
+Para fazer a versão leve:
+
+```bash
+ffmpeg -i original.mp4 -c:v libx264 -preset slow -crf 20 -vf "scale=-2:1080" -r 30 \
+       -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart leve.mp4
+```
+
+## Quando a máquina ou a rede não aguentam
+
+- **Download aos bocados de 8 MB**, cada um com novas tentativas: uma quebra de ligação custa um bocado,
+  não o vídeo inteiro. Se o servidor não aceitar bocados, volta ao pedido único.
+- **Quem falha o download não atrasa a mesa**: vê a cena pela rede, e o card mostra ⚠ com o nome e o
+  erro — também fora de uma exibição.
+- **Quem encrava repetidamente passa a priorizar fluidez**: depois de dois saltos de sincronia em 20 s,
+  deixa de ser forçado a saltar e vê a cena contínua, um pouco atrasado, em vez de aos solavancos.
 
 ## O que o mestre vê
 
@@ -126,6 +137,7 @@ Um 4K de 80 s e 194 MB vira algo perto de 40 MB.
 | Opção | Escopo | Padrão |
 |---|---|---|
 | Volume das cutscenes | por computador | 0.8 |
+| Qualidade das cutscenes (automático · sempre leve · sempre original) | por computador | automático |
 | O mestre assiste numa janela | mundo | sim |
 | Silenciar a música durante a cutscene | mundo | sim |
 | Aliviar o canvas do mestre durante a cena | por computador | não |
@@ -149,5 +161,5 @@ Foundry **v13+** (verificado na v14). Sem dependências. O cache em disco exige 
 ## Desenvolvimento
 
 ```bash
-npm test     # sincronia, audiência, cache, macro + integridade (ações, i18n, caminhos)
+npm test     # sincronia, download com quedas de ligação, escolha de versão, audiência + integridade
 ```

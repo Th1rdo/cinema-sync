@@ -16,7 +16,7 @@
     {{#if emCartaz.esperando}}
     <div class="cinema-faltam">
       <span>{{localize "CINEMA.AindaBaixando"}}</span>
-      {{#each emCartaz.faltam}}<span class="cinema-falta">{{this.nome}} <b>{{this.pct}}%</b></span>{{/each}}
+      {{#each emCartaz.faltam}}<span class="cinema-falta">{{this.nome}} <b>{{this.progresso}}</b></span>{{/each}}
       <button type="button" data-action="comecarJa"><i class="fa-solid fa-forward"></i> {{localize "CINEMA.ComecarJa"}}</button>
     </div>
     {{else}}
@@ -31,11 +31,16 @@
       <span class="cinema-pessoa fase-{{this.fase}}" title="{{this.rotulo}}{{#if this.desvio}} · ±{{this.desvio}} ms{{/if}}">
         <span class="cinema-ponto" style="--cor: {{this.cor}}"></span>{{this.nome}}
         {{#if this.telaCheia}}<i class="fa-solid fa-expand cinema-cheia" title="{{localize 'CINEMA.EmTelaCheia'}}"></i>{{/if}}
+        {{#if this.leve}}<span class="cinema-leve" title="{{localize 'CINEMA.LeveHint'}}">{{localize "CINEMA.Leve"}}</span>{{/if}}
+        {{#if this.fluidez}}<i class="fa-solid fa-gauge-simple-low" title="{{localize 'CINEMA.FluidezHint'}}"></i>{{/if}}
         {{#if this.somBloqueado}}<i class="fa-solid fa-volume-xmark" title="{{localize 'CINEMA.SomBloqueadoHint'}}"></i>{{/if}}
         {{#if this.engasgando}}<i class="fa-solid fa-temperature-high" title="{{localize 'CINEMA.EngasgandoHint'}} ({{this.perdidos}}%)"></i>{{/if}}
       </span>
       {{/each}}
     </div>
+    {{#each emCartaz.plateia}}{{#if this.erro}}
+    <p class="cinema-erro-linha"><i class="fa-solid fa-triangle-exclamation"></i> {{this.nome}}: {{this.erro}} — {{localize "CINEMA.VaiPelaRede"}}</p>
+    {{/if}}{{/each}}
   </div>
   {{/if}}
 
@@ -86,6 +91,8 @@
             {{else}}{{localize "CINEMA.Todos"}}{{/if}}
           </span>
           <span class="cinema-flags">
+            {{#if this.falhas}}<i class="fa-solid fa-triangle-exclamation cinema-falhou" title="{{localize 'CINEMA.FalhasHint'}}&#10;{{this.falhas}}"></i>{{/if}}
+            {{#if this.temLeve}}<span class="cinema-leve" title="{{localize 'CINEMA.TemLeveHint'}}">{{localize "CINEMA.Leve"}}</span>{{/if}}
             {{#if this.pedirTelaCheia}}<i class="fa-solid fa-expand" title="{{localize 'CINEMA.PedirTelaCheia'}}"></i>{{/if}}
             {{#if this.preCarregar}}<i class="fa-solid fa-bolt cinema-auto" title="{{localize 'CINEMA.PreCarregarAoEntrar'}}"></i>{{/if}}
           </span>

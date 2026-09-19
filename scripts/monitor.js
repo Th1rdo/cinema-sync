@@ -3,6 +3,7 @@ import { enviar } from "./net.js";
 import { Reprodutor } from "./player.js";
 import { abaixarMusica, restaurarMusica, aliviarCanvas, desaliviarCanvas } from "./ambiente.js";
 import { Cinema } from "./cinema.js";
+import { srcParaEste } from "./biblioteca.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -57,8 +58,9 @@ export class Monitor extends HandlebarsApplicationMixin(ApplicationV2) {
     const ids = { exibicaoId, itemId: item.id, userId: game.user.id };
     abaixarMusica();
     if (game.settings.get(MODULE_ID, "aliviarCanvasMestre")) aliviarCanvas(30);
+    const { src } = await srcParaEste(item);
     this.#reprodutor = await Reprodutor.criar({
-      src: item.src,
+      src,
       palco: this.element.querySelector(".cinema-monitor-palco"),
       volume: game.settings.get(MODULE_ID, "volume") * (item.volume ?? 1),
       onRelato: (r) => enviar(MSG.STATUS, { ...ids, phase: PHASE.PLAYING, ...r }, { local: true }),

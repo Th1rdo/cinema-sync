@@ -18,6 +18,8 @@ export class Reprodutor {
   #loop = null;
   #conferencias = 0;
   #esperandoBuffer = false;
+  #saltos = [];              // instantes dos pulos corretivos recentes
+  #fluidez = false;          // desistiu de forçar a sincronia neste computador
   #onRelato;
   #onFim;
   #onVisibilidade = () => { if (!document.hidden) this.#conferir("voltou de outra aba"); };
@@ -115,11 +117,24 @@ export class Reprodutor {
       agoraLocal: performance.now()
     });
     const desvio = esperado - v.currentTime;
-    const pulou = decidir(desvio, limiar) === "seek";
+    const pulou = !this.#fluidez && decidir(desvio, limiar) === "seek";
 
     if (pulou) {
       log(`desvio de ${Math.round(desvio * 1000)}ms (${motivo ?? "rotina"}) — pulando`);
       v.currentTime = Math.max(0, esperado);
+
+      // Quem encrava sem parar (máquina ou rede fracas) piora a cada pulo:
+      // o pulo obriga a buscar outro trecho e o vídeo encrava de novo. Depois
+      // de dois pulos em 20 s, este computador passa a priorizar fluidez —
+      // vê a cena contínua, um pouco atrasado, em vez de aos solavancos.
+      if (motivo !== "largada") {
+        const agora = performance.now();
+        this.#saltos = [...this.#saltos.filter(t => agora - t < 20000), agora];
+        if (this.#saltos.length >= 2) {
+          this.#fluidez = true;
+          log("encravou repetidamente — a priorizar fluidez em vez de sincronia");
+        }
+      }
     }
 
     this.#conferencias++;
@@ -128,6 +143,7 @@ export class Reprodutor {
       this.#onRelato?.({
         desvio: Math.round(desvio * 1000),
         pulou,
+        fluidez: this.#fluidez,
         perdidos: q?.totalVideoFrames ? Math.round(100 * q.droppedVideoFrames / q.totalVideoFrames) : 0
       });
     }
