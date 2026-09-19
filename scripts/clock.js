@@ -1,28 +1,22 @@
 import { SYNC } from "./const.js";
 
 /**
- * Relógio compartilhado.
- *
- * game.time.serverTime é o tempo do servidor estimado pelo core usando o
- * algoritmo de Cristian (última sincronização + metade da latência medida).
- * É a única referência que todos os clientes têm em comum — é nela que os
- * instantes de partida são combinados, nunca em Date.now() local.
+ * Relógio compartilhado: game.time.serverTime, sincronizado pelo core com o
+ * algoritmo de Cristian. Usado para combinar o instante da largada — e só.
+ * Depois da largada o cliente usa performance.now(), que é monotônico: o
+ * serverTime é re-sincronizado de tempos em tempos e pode dar pequenos saltos,
+ * que antes eram confundidos com desvio e disparavam correções à toa.
  */
 export const serverNow = () => game.time.serverTime;
 
 /**
  * Executa `callback` quando o relógio do servidor alcançar `targetMs`.
+ * Dorme no setTimeout e só entra em requestAnimationFrame nos últimos 250 ms.
  *
- * setTimeout sozinho erra dezenas de milissegundos; requestAnimationFrame
- * sozinho gastaria CPU à toa. Então dormimos no setTimeout até faltar pouco e
- * só aí entramos no rAF, que acerta no frame.
- *
- * @returns {() => void} função para cancelar o agendamento
+ * @returns {() => void} função para cancelar
  */
 export function scheduleAt(targetMs, callback, nowFn = serverNow) {
-  let cancelado = false;
-  let timer = null;
-  let raf = null;
+  let cancelado = false, timer = null, raf = null;
 
   const tick = () => {
     if (cancelado) return;
@@ -41,17 +35,20 @@ export function scheduleAt(targetMs, callback, nowFn = serverNow) {
 }
 
 /**
- * Decide o que fazer com o desvio entre onde o vídeo está e onde deveria estar.
- * Função pura: é o miolo da sincronia e é o que os testes cobrem.
+ * Onde o vídeo deveria estar agora, em segundos.
  *
- * @param {number} desvio  esperado - real, em segundos (positivo = atrasado)
- * @returns {{acao: "hold"|"nudge"|"seek", rate: number}}
+ * `ancoraServer` é o serverTime lido UMA vez, logo depois do play começar de
+ * verdade; `ancoraLocal` é o performance.now() do mesmo instante. Daí em diante
+ * só o relógio local conta — imune aos re-syncs do servidor.
  */
-export function correcao(desvio, cfg = SYNC) {
-  const m = Math.abs(desvio);
-  if (m <= cfg.DEAD_ZONE) return { acao: "hold", rate: 1 };
-  if (m >= cfg.HARD_SEEK) return { acao: "seek", rate: 1 };
-  // proporcional, mas limitado: acelerar demais é audível
-  const ajuste = Math.min(cfg.MAX_RATE, m * 0.15) * Math.sign(desvio);
-  return { acao: "nudge", rate: Number((1 + ajuste).toFixed(4)) };
+export function tempoEsperado({ startAt, ancoraServer, ancoraLocal, agoraLocal }) {
+  return (ancoraServer - startAt) / 1000 + (agoraLocal - ancoraLocal) / 1000;
+}
+
+/**
+ * Decide se intervém. Só existe "segura" ou "pula": sem ajuste de velocidade.
+ * @param {number} desvio  esperado - real, em segundos
+ */
+export function decidir(desvio, limiar = SYNC.LIMIAR) {
+  return Math.abs(desvio) > limiar ? "seek" : "hold";
 }

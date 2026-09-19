@@ -2,38 +2,45 @@
 export const MODULE_ID = "cinema-sync";
 export const SOCKET = `module.${MODULE_ID}`;
 
-/** Mensagens do protocolo. Toda mensagem carrega { type, cueId, from }. */
+/** Mensagens do protocolo. Toda mensagem carrega { type, from }. */
 export const MSG = {
-  ARM:      "arm",       // mestre → todos: preparem este vídeo
-  STATUS:   "status",    // cliente → mestre: como estou
-  CURTAIN:  "curtain",   // mestre → todos: subam a cortina (clique destrava áudio+fullscreen)
-  START:    "start",     // mestre → todos: comecem em startAt (tempo de servidor)
-  STOP:     "stop",      // mestre → todos: encerrem agora
-  ENDED:    "ended",     // cliente → mestre: o vídeo acabou aqui
-  REJOIN:   "rejoin"     // cliente → mestre: cheguei atrasado, o que está rodando?
+  ARM:    "arm",      // mestre → todos: preparem este vídeo
+  STATUS: "status",   // cliente → mestre: como estou
+  START:  "start",    // mestre → todos: a cena começa em startAt (tempo de servidor)
+  STOP:   "stop",     // mestre → todos: encerrem agora
+  ENDED:  "ended",    // cliente → mestre: o vídeo acabou aqui
+  REJOIN: "rejoin"    // cliente → mestre: cheguei atrasado, o que está rodando?
 };
 
 /** Estados que um cliente reporta ao mestre. */
 export const PHASE = {
-  IDLE:      "idle",
-  LOADING:   "loading",
-  READY:     "ready",
-  CURTAINED: "curtained",   // clicou: áudio destravado, cortina no ar
-  PLAYING:   "playing",
-  ENDED:     "ended",
-  FAILED:    "failed",
-  NOCODEC:   "nocodec"
+  IDLE:    "idle",
+  LOADING: "loading",
+  READY:   "ready",
+  PLAYING: "playing",
+  ENDED:   "ended",
+  LEFT:    "left",      // o jogador saiu da cena por conta própria
+  FAILED:  "failed",
+  NOCODEC: "nocodec"
 };
 
-/** Sincronia. Tudo em segundos, exceto os *_MS. */
+/**
+ * Sincronia.
+ *
+ * A estratégia é sincronizar UMA vez, com precisão, na largada — e depois
+ * confiar no relógio monotônico de cada cliente. Só há intervenção quando algo
+ * realmente deu errado (buffer secou, alt-tab, reconexão). Nada de mexer na
+ * velocidade: playbackRate ≠ 1 liga o time-stretching de áudio, que custa CPU
+ * e produz estalos audíveis.
+ */
 export const SYNC = {
-  LEAD_MS:     1200,   // antecedência entre "exibir" e o instante combinado
-  CHECK_MS:    2000,   // de quanto em quanto tempo conferir o desvio
-  DEAD_ZONE:   0.05,   // até 50 ms: não mexe
-  HARD_SEEK:   0.35,   // acima de 350 ms: pula direto para o ponto certo
-  MAX_RATE:    0.04,   // correção suave: no máximo ±4% na velocidade
-  ARM_TIMEOUT: 120000, // desiste de esperar um cliente carregar
-  CURTAIN_TIMEOUT: 300000 // cortina esquecida no ar libera o jogador
+  LEAD_MS:       3000,   // tela preta antes da cena: tempo de todos receberem e se prepararem
+  CHECK_MS:      1000,   // de quanto em quanto tempo conferir (só leitura, custo zero)
+  LIMIAR_INICIO: 0.25,   // na largada: absorve o atraso do decodificador ao dar play
+  LIMIAR:        0.5,    // durante a cena: só pula se o desvio for real
+  RELATO_A_CADA: 10,     // conferências entre um relato e outro ao mestre
+  START_TIMEOUT: 20000,  // tela preta que nunca vira vídeo é desfeita
+  ARM_TIMEOUT:   120000
 };
 
 export const log = (...args) => console.log(`${MODULE_ID} |`, ...args);

@@ -2,6 +2,8 @@ import { MODULE_ID, MSG, log } from "./const.js";
 import { iniciarRede, ao, enviar } from "./net.js";
 import { tela } from "./screen.js";
 import { Diretor, ouvirComoMestre } from "./director.js";
+import { Monitor } from "./monitor.js";
+import { canvasFoiRedesenhado } from "./ambiente.js";
 import { limparCache } from "./preload.js";
 
 Hooks.once("init", () => {
@@ -16,6 +18,11 @@ Hooks.once("init", () => {
     scope: "world", config: true, type: Boolean, default: true
   });
 
+  game.settings.register(MODULE_ID, "silenciarMusica", {
+    name: "CINEMA.Config.SilenciarMusica", hint: "CINEMA.Config.SilenciarMusicaHint",
+    scope: "world", config: true, type: Boolean, default: true
+  });
+
   game.settings.register(MODULE_ID, "fecharNoFim", {
     name: "CINEMA.Config.FecharNoFim", hint: "CINEMA.Config.FecharNoFimHint",
     scope: "world", config: true, type: Boolean, default: true
@@ -27,23 +34,17 @@ Hooks.once("init", () => {
     restricted: true,
     onDown: () => { Diretor.abrir(); return true; }
   });
-
-  log("inicializado");
 });
 
 /**
- * Botão na barra de ferramentas da esquerda (scene controls).
- *
- * A partir da v13 o hook recebe um Record indexado por nome, não mais um array.
- * Entramos como ferramenta dentro do grupo de tokens em vez de criar um grupo
- * próprio: grupo sem camada de canvas associada pode não renderizar.
+ * Claquete na barra de ferramentas da esquerda.
+ * v13+: o hook recebe um Record indexado por nome. Entramos como ferramenta do
+ * grupo de tokens em vez de criar grupo próprio (grupo sem camada pode não renderizar).
  */
 Hooks.on("getSceneControlButtons", (controls) => {
   if (!game.user.isGM || Array.isArray(controls)) return;
-
   const grupo = controls.tokens ?? Object.values(controls)[0];
   if (!grupo?.tools) return;
-
   grupo.tools.cinema = {
     name: "cinema",
     order: Object.keys(grupo.tools).length + 1,
@@ -55,25 +56,36 @@ Hooks.on("getSceneControlButtons", (controls) => {
   };
 });
 
+// o Foundry reconfigura o FPS ao redesenhar o canvas; se houver cena passando, re-congela
+Hooks.on("canvasReady", () => canvasFoiRedesenhado());
+
 Hooks.once("ready", () => {
   iniciarRede();
 
-  // --- o que todo cliente faz ---
-  ao(MSG.ARM,     (m) => tela.armar(m.cue));
-  ao(MSG.CURTAIN, (m) => tela.cortina(m.cue));
-  ao(MSG.START,   (m) => tela.iniciar(m.cue, m.startAt));
-  ao(MSG.STOP,    ()  => tela.encerrar());
+  // pré-carga: jogadores sempre; o mestre só se for assistir na janela
+  ao(MSG.ARM, (m) => tela.armar(m.cue));
 
-  // --- o que só o mestre faz ---
+  // largada: jogador vai para a tela cheia, mestre para a janela
+  ao(MSG.START, (m) => {
+    if (!game.user.isGM) return tela.iniciar(m.cue, m.startAt);
+    if (game.settings.get(MODULE_ID, "mestreAssiste")) Monitor.exibir(m.cue, m.startAt);
+  });
+
+  ao(MSG.STOP, () => {
+    if (game.user.isGM) Monitor.parar();
+    else tela.encerrar();
+  });
+
   if (game.user.isGM) ouvirComoMestre();
-  else enviar(MSG.REJOIN, {});          // cheguei agora: tem algo em cartaz?
+  else enviar(MSG.REJOIN, {});        // cheguei agora: tem algo em cartaz?
 
   game.cinema = {
     diretor: () => Diretor.abrir(),
-    encerrar: () => tela.encerrar(),
+    encerrar: () => (game.user.isGM ? Monitor.parar() : tela.encerrar()),
     limparCache,
     tela,
-    Diretor
+    Diretor,
+    Monitor
   };
 
   log("pronto");

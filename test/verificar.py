@@ -16,9 +16,10 @@ for arq in os.listdir("scripts"):
     for imp in re.findall(r'from "\./([^"]+)"', open(f"scripts/{arq}", encoding="utf-8").read()):
         if not os.path.exists(f"scripts/{imp}"): falhas.append(f"{arq} importa {imp}, inexistente")
 
+for arq in os.listdir("scripts"):
+    for t in re.findall(r'template: `modules/[^/]+/([^`]+)`', open(f"scripts/{arq}", encoding="utf-8").read()):
+        if not os.path.exists(t): falhas.append(f"{arq}: PARTS aponta para {t}, inexistente")
 js = open("scripts/director.js", encoding="utf-8").read()
-for t in re.findall(r'template: `modules/[^/]+/([^`]+)`', js):
-    if not os.path.exists(t): falhas.append(f"PARTS aponta para {t}, inexistente")
 
 hbs = open("templates/director.hbs", encoding="utf-8").read()
 acoes_tpl = set(re.findall(r'data-action="(\w+)"', hbs))
@@ -30,7 +31,7 @@ falhas += [f'ação "{a}" registrada mas sem botão' for a in acoes_js - acoes_t
 pt = json.load(open("lang/pt-BR.json", encoding="utf-8"))
 en = json.load(open("lang/en.json", encoding="utf-8"))
 usadas = set()
-for arq in [f"scripts/{a}" for a in os.listdir("scripts")] + ["templates/director.hbs", "module.json"]:
+for arq in [f"scripts/{a}" for a in os.listdir("scripts")] + [f"templates/{t}" for t in os.listdir("templates")] + ["module.json"]:
     src = open(arq, encoding="utf-8").read()
     usadas |= set(re.findall(r'localize\("([\w.]+)"\)', src))
     usadas |= set(re.findall(r"localize '([\w.]+)'", src))

@@ -8,19 +8,24 @@
         <i class="fa-solid fa-folder-open"></i> {{localize "CINEMA.Escolher"}}
       </button>
     </div>
+    {{#if duracao}}<small class="cinema-meta">{{localize "CINEMA.Duracao"}}: {{duracao}}</small>{{/if}}
   </div>
 
   <div class="cinema-passos">
     <button type="button" data-action="armar" {{#unless cue}}disabled{{/unless}}>
       <i class="fa-solid fa-download"></i> 1. {{localize "CINEMA.Armar"}}
     </button>
-    <button type="button" data-action="cortina" {{#unless cue}}disabled{{/unless}}>
-      <i class="fa-solid fa-moon"></i> 2. {{localize "CINEMA.Cortina"}}
-    </button>
     <button type="button" class="cinema-exibir" data-action="exibir" {{#unless podeExibir}}disabled{{/unless}}>
-      <i class="fa-solid fa-play"></i> 3. {{localize "CINEMA.Exibir"}}
+      <i class="fa-solid fa-play"></i> 2. {{localize "CINEMA.Exibir"}}
     </button>
   </div>
+
+  {{#if emCartaz}}
+  <div class="cinema-tempo">
+    <span class="cinema-tempo-barra"><span></span></span>
+    <span class="cinema-tempo-texto">0:00</span>
+  </div>
+  {{/if}}
 
   <div class="cinema-plateia">
     <header>
@@ -33,6 +38,8 @@
     <div class="cinema-jogador fase-{{this.fase}}">
       <span class="cinema-ponto" style="--cor: {{this.cor}}"></span>
       <span class="cinema-nome">{{this.nome}}</span>
+      {{#if this.somBloqueado}}<i class="fa-solid fa-volume-xmark cinema-alerta" title="{{localize 'CINEMA.SomBloqueadoHint'}}"></i>{{/if}}
+      {{#if this.engasgando}}<i class="fa-solid fa-temperature-high cinema-alerta" title="{{localize 'CINEMA.EngasgandoHint'}} ({{this.perdidos}}%)"></i>{{/if}}
       {{#if this.carregando}}
         <span class="cinema-barra"><span style="width: {{this.pct}}%"></span></span>
         <span class="cinema-pct">{{this.pct}}%</span>
