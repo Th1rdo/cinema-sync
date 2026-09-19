@@ -7,6 +7,7 @@ import * as bib from "./biblioteca.js";
 import { canvasFoiRedesenhado } from "./ambiente.js";
 import { limparCache } from "./preload.js";
 import { comandoDaMacro } from "./logica.js";
+import { iniciarTelaCheia, relatarDeNovo } from "./telacheia.js";
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, "biblioteca", {
@@ -21,6 +22,16 @@ Hooks.once("init", () => {
     name: "CINEMA.Config.Volume", hint: "CINEMA.Config.VolumeHint",
     scope: "client", config: true, type: Number, default: 0.8,
     range: { min: 0, max: 1, step: 0.05 }
+  });
+
+  game.settings.register(MODULE_ID, "telaCheia", {
+    name: "CINEMA.Config.TelaCheia", hint: "CINEMA.Config.TelaCheiaHint",
+    scope: "client", config: true, type: String, default: "convidar",
+    choices: {
+      convidar: "CINEMA.Config.TelaCheiaConvidar",
+      automatico: "CINEMA.Config.TelaCheiaAutomatico",
+      nunca: "CINEMA.Config.TelaCheiaNunca"
+    }
   });
 
   game.settings.register(MODULE_ID, "mestreAssiste", {
@@ -110,7 +121,11 @@ Hooks.once("ready", () => {
   ao(MSG.ESQUECER, async (m) => { await bib.esquecerLocal(m.src); bib.relatarInventario(); });
 
   // o mestre entrou ou recarregou: pede a todos o que já têm em disco
-  ao(MSG.CENSO, () => { if (!game.user.isGM) bib.relatarInventario(); });
+  ao(MSG.CENSO, () => {
+    if (game.user.isGM) return;
+    bib.relatarInventario();
+    relatarDeNovo();
+  });
 
   if (game.user.isGM) {
     ouvirComoMestre();
@@ -121,6 +136,9 @@ Hooks.once("ready", () => {
 
   // conta o que já tem em disco e baixa em segundo plano o que falta
   bib.relatarInventario().then(() => bib.filaDeFundo());
+
+  // tela cheia de sessão: convite, automático ou nada — conforme o jogador escolheu
+  iniciarTelaCheia();
 
   game.cinema = {
     abrir: () => Cinema.abrir(),

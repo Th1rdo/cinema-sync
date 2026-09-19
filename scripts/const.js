@@ -11,6 +11,7 @@ export const MSG = {
   REJOIN:     "rejoin",      // cliente → mestre: cheguei atrasado, o que está rodando?
   INVENTARIO: "inventario",  // cliente → mestre: estes itens eu já tenho em disco
   CENSO:      "censo",       // mestre → todos: digam-me o que têm (mestre entrou ou recarregou)
+  TELA:       "tela",        // cliente → mestre: entrei ou saí da tela cheia
   ESQUECER:   "esquecer"     // mestre → todos: apaguem este vídeo do cache
 };
 

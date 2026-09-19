@@ -53,5 +53,19 @@
   "CINEMA.Config.SilenciarMusicaHint": "Abaixa as playlists tocando enquanto a cena passa e devolve o volume no fim.",
   "CINEMA.Config.FecharNoFim": "Fechar ao terminar",
   "CINEMA.Config.FecharNoFimHint": "Devolve a mesa automaticamente quando o vídeo acaba.",
-  "CINEMA.EncerrarTodos": "Encerrar a cena para todos"
+  "CINEMA.EncerrarTodos": "Encerrar a cena para todos",
+  "CINEMA.Convite.Titulo": "Jogar em tela cheia?",
+  "CINEMA.Convite.Texto": "As cutscenes desta mesa ficam melhores no monitor inteiro.",
+  "CINEMA.Convite.Entrar": "Entrar",
+  "CINEMA.Convite.Sempre": "Sempre",
+  "CINEMA.Convite.SempreHint": "Entra agora e, nas próximas sessões, sozinho no seu primeiro clique",
+  "CINEMA.Convite.AgoraNao": "Agora não",
+  "CINEMA.PedirTelaCheia": "Pedir tela cheia a quem não estiver",
+  "CINEMA.EmTelaCheia": "Em tela cheia",
+  "CINEMA.NaoEmTelaCheia": "Na janela do navegador",
+  "CINEMA.Config.TelaCheia": "Tela cheia",
+  "CINEMA.Config.TelaCheiaHint": "Como este computador entra em tela cheia para as cutscenes.",
+  "CINEMA.Config.TelaCheiaConvidar": "Convidar ao entrar no mundo",
+  "CINEMA.Config.TelaCheiaAutomatico": "Entrar sozinho no primeiro clique da sessão",
+  "CINEMA.Config.TelaCheiaNunca": "Nunca"
 }

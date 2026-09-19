@@ -49,3 +49,16 @@ export function nomeDoArquivo(caminho) {
   const base = decodeURIComponent(caminho.split("?")[0].split("/").pop() ?? "");
   return base.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim() || "Cutscene";
 }
+
+/**
+ * O jogador já está vendo o monitor inteiro?
+ *
+ * Tela cheia pedida pela página (Fullscreen API) é detectada com certeza.
+ * A do próprio navegador (F11, ⌃⌘F) não é reportada pela API: comparamos o
+ * tamanho da janela com o da tela, com 2px de folga para arredondamento.
+ */
+export function pareceTelaCheia({ fullscreenElement, displayModeFullscreen, innerWidth, innerHeight, screenWidth, screenHeight }) {
+  if (fullscreenElement || displayModeFullscreen) return true;
+  if (!screenWidth || !screenHeight) return false;
+  return Math.abs(innerWidth - screenWidth) <= 2 && Math.abs(innerHeight - screenHeight) <= 2;
+}

@@ -29,7 +29,7 @@ Em cada card:
 | ▶ | exibe para a audiência padrão |
 | 👤✓ | escolhe na hora quem vê (flashback de um personagem só) |
 | ⬇ | baixa agora para a audiência |
-| ⚙ | nome, quem assiste por padrão, pré-carregar ao entrar, volume, remover |
+| ⚙ | nome, quem assiste por padrão, pré-carregar ao entrar, pedir tela cheia, volume, remover |
 
 O card mostra quantos jogadores já têm o vídeo em disco (`4/5`) e avisa quando o vídeo é 4K.
 
@@ -45,11 +45,35 @@ Preto por três segundos. O filme entra em fade. No fim, apaga e a mesa volta. N
 nenhum botão, nenhum cursor — a menos que o navegador tenha bloqueado o som, e aí aparece
 "clique para ouvir".
 
-Durante a cena, o jogador pode clicar (tela cheia do sistema, se o navegador deixar) ou apertar
-**Esc** para sair da própria tela.
+Durante a cena o jogador pode apertar **Esc** para sair da própria tela. Em tela cheia, o
+primeiro Esc é do navegador (sai da tela cheia) e o segundo sai da cena.
 
 Enquanto a cena passa, nos jogadores: o **canvas do Foundry sai do ar** (1 fps, invisível) e a
 **música das playlists abaixa**. Tudo volta no fim.
+
+## Tela cheia
+
+Os navegadores só entram em tela cheia em resposta a um clique da própria pessoa, feito nos
+últimos segundos. É regra de segurança: nenhum módulo contorna. Então o clique precisa acontecer
+num momento que não custe imersão.
+
+**No começo da sessão.** Quando o jogador entra num mundo que tem cutscenes, aparece um convite
+discreto no topo:
+
+- **Entrar** — tela cheia agora, para esta sessão.
+- **Sempre** — entra agora e, nas próximas sessões, sozinho no primeiro clique do jogador.
+- **Agora não** — pergunta de novo na próxima sessão.
+
+Quem aceita tem **todas as cutscenes em tela cheia, sem prompt nenhum**. F11 (ou ⌃⌘F no Mac)
+também vale, e é detectado.
+
+**Na cena, como rede de segurança.** Cada cutscene tem a opção *Pedir tela cheia a quem não
+estiver*. Ligada, quem ainda está na janela do navegador vê um ⛶ discreto no preto antes do
+filme. Clicar em qualquer lugar entra em tela cheia, e ela é desfeita no fim da cena. Quem já
+estava em tela cheia não vê nada.
+
+Na janela Cinema, o mestre vê um ⛶ verde ao lado de cada jogador que já está em tela cheia —
+sabe antes de dar play quem vai ver a cena no monitor inteiro.
 
 ## O que o mestre vê
 
@@ -84,6 +108,7 @@ Um 4K de 80 s e 194 MB vira algo perto de 40 MB.
 | Opção | Escopo | Padrão |
 |---|---|---|
 | Volume das cutscenes | por computador | 0.8 |
+| Tela cheia (convidar · sozinho no primeiro clique · nunca) | por computador | convidar |
 | O mestre assiste numa janela | mundo | sim |
 | Silenciar a música durante a cutscene | mundo | sim |
 | Fechar ao terminar | mundo | sim |

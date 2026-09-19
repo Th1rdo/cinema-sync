@@ -52,3 +52,24 @@ test("mm:ss", () => {
   assert.equal(mmss(80), "1:20");
   assert.equal(mmss(5), "0:05");
 });
+
+import { pareceTelaCheia } from "../scripts/logica.js";
+
+const tela = { screenWidth: 1512, screenHeight: 982 };
+
+test("tela cheia pedida pela página é detectada com certeza", () => {
+  assert.equal(pareceTelaCheia({ ...tela, fullscreenElement: {}, innerWidth: 800, innerHeight: 600 }), true);
+});
+
+test("F11 / ⌃⌘F: janela do tamanho da tela conta como tela cheia", () => {
+  assert.equal(pareceTelaCheia({ ...tela, innerWidth: 1512, innerHeight: 982 }), true);
+  assert.equal(pareceTelaCheia({ ...tela, innerWidth: 1511, innerHeight: 981 }), true);   // arredondamento
+});
+
+test("janela maximizada com barra de abas e menu não é tela cheia", () => {
+  assert.equal(pareceTelaCheia({ ...tela, innerWidth: 1512, innerHeight: 862 }), false);
+});
+
+test("sem informação de tela, não arrisca", () => {
+  assert.equal(pareceTelaCheia({ innerWidth: 1512, innerHeight: 982 }), false);
+});

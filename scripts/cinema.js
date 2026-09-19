@@ -33,6 +33,8 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
   // ------------------------------------------------------------------ estado do mestre
   /** userId → Set(itemId) do que cada cliente já tem em disco */
   static inventario = new Map();
+  /** userId → está em tela cheia agora? */
+  static telaCheia = new Map();
   /** userId → último relato durante a exibição atual */
   static relatos = new Map();
   /**
@@ -77,6 +79,7 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
         peso,
         cache,
         audiencia,
+        pedirTelaCheia: item.pedirTelaCheia ?? true,
         emCartaz: ex?.itemId === item.id
       };
     });
@@ -98,6 +101,7 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
           return {
             nome: u?.name ?? "?",
             cor: u?.color?.css ?? u?.color ?? "#999",
+            telaCheia: !!Cinema.telaCheia.get(id),
             fase: r.phase ?? PHASE.IDLE,
             rotulo: game.i18n.localize(`CINEMA.Fase.${r.phase ?? PHASE.IDLE}`),
             somBloqueado: !!(r.somBloqueado || r.mudo),
@@ -109,7 +113,14 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
       };
     }
 
-    return { cards, vazio: cards.length === 0, emCartaz };
+    // quem está na mesa agora, e quem já vai ver no monitor inteiro
+    const presentes = game.users.filter(u => u.active && !u.isGM).map(u => ({
+      nome: u.name,
+      cor: u.color?.css ?? u.color ?? "#999",
+      telaCheia: !!Cinema.telaCheia.get(u.id)
+    }));
+
+    return { cards, vazio: cards.length === 0, emCartaz, presentes };
   }
 
   _onRender() {
@@ -269,6 +280,7 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
           ${jogadores.map(u => `<label><input type="checkbox" name="u" value="${u.id}" ${todos || item.audiencia.includes(u.id) ? "checked" : ""}> ${u.name}</label>`).join("")}
         </fieldset>
         <label class="cinema-linha"><input type="checkbox" name="preCarregar" ${item.preCarregar ? "checked" : ""}> ${game.i18n.localize("CINEMA.PreCarregarAoEntrar")}</label>
+        <label class="cinema-linha"><input type="checkbox" name="pedirTelaCheia" ${(item.pedirTelaCheia ?? true) ? "checked" : ""}> ${game.i18n.localize("CINEMA.PedirTelaCheia")}</label>
         <label>${game.i18n.localize("CINEMA.Volume")} <input type="range" name="volume" min="0" max="1" step="0.05" value="${item.volume ?? 1}"></label>
       </div>`;
 
@@ -284,6 +296,7 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
               nome: f.querySelector('[name="nome"]').value.trim() || item.nome,
               audiencia: f.querySelector('[name="todos"]').checked ? null : marcados,
               preCarregar: f.querySelector('[name="preCarregar"]').checked,
+              pedirTelaCheia: f.querySelector('[name="pedirTelaCheia"]').checked,
               volume: Number(f.querySelector('[name="volume"]').value)
             };
           } },
@@ -311,6 +324,12 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
 
 // ------------------------------------------------------------------ o que o mestre escuta
 export function ouvirComoMestre() {
+  ao(MSG.TELA, (m) => {
+    if (!game.user.isGM) return;
+    Cinema.telaCheia.set(m.userId, !!m.telaCheia);
+    Cinema.atualizar();
+  });
+
   ao(MSG.INVENTARIO, (m) => {
     if (!game.user.isGM) return;
     Cinema.inventario.set(m.userId, new Set(m.ids));

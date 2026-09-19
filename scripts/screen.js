@@ -2,6 +2,7 @@ import { MODULE_ID, MSG, PHASE, SYNC, warn } from "./const.js";
 import { enviar } from "./net.js";
 import { Reprodutor } from "./player.js";
 import { abaixarMusica, restaurarMusica, congelarCanvas, descongelarCanvas } from "./ambiente.js";
+import { estaEmTelaCheia } from "./telacheia.js";
 
 /**
  * A tela do jogador: preto, o filme, a mesa de volta.
@@ -28,6 +29,12 @@ class TelaDeCinema {
     congelarCanvas();
     abaixarMusica();
 
+    // a rede de segurança: quem não entrou em tela cheia no começo da sessão
+    // vê o ⛶ no preto, se esta cena pede. Clicar em qualquer lugar vale.
+    if ((item.pedirTelaCheia ?? true) && !estaEmTelaCheia()) {
+      root.querySelector(".cinema-convite-cena").hidden = false;
+    }
+
     const volume = game.settings.get(MODULE_ID, "volume") * (item.volume ?? 1);
     this.#reprodutor = await Reprodutor.criar({
       src: item.src,
@@ -45,7 +52,10 @@ class TelaDeCinema {
     });
     if (!this.#root) return this.#reprodutor.destruir();   // encerrado enquanto resolvia o cache
 
-    this.#reprodutor.video.addEventListener("playing", () => clearTimeout(this.#watchdog), { once: true });
+    this.#reprodutor.video.addEventListener("playing", () => {
+      clearTimeout(this.#watchdog);
+      root.querySelector(".cinema-convite-cena")?.classList.add("cinema-some");   // sai junto com o preto
+    }, { once: true });
     this.#reprodutor.agendar(startAt);
 
     this.#watchdog = setTimeout(() => {
@@ -57,11 +67,12 @@ class TelaDeCinema {
 
   /** Clique: tela cheia do sistema (se o navegador deixar) e som (se estava mudo). */
   #aoClicar = async () => {
+    this.#root?.querySelector(".cinema-convite-cena")?.classList.add("cinema-some");
     if (this.#reprodutor?.mudo) {
       this.#reprodutor.desmutar();
       this.#root.querySelector(".cinema-som").hidden = true;
     }
-    if (!document.fullscreenElement && this.#root) {
+    if (!estaEmTelaCheia() && this.#root) {
       try {
         await this.#root.requestFullscreen({ navigationUI: "hide" });
         this.#entrouFullscreen = true;
@@ -106,6 +117,7 @@ class TelaDeCinema {
     root.id = "cinema-sync-overlay";
     root.innerHTML = `
       <div class="cinema-palco"></div>
+      <div class="cinema-convite-cena" hidden><i class="fa-solid fa-expand"></i></div>
       <div class="cinema-som" hidden>${game.i18n.localize("CINEMA.CliqueParaSom")}</div>`;
     root.addEventListener("click", this.#aoClicar);
     window.addEventListener("keydown", this.#aoTeclar, true);

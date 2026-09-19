@@ -30,11 +30,24 @@
       {{#each emCartaz.plateia}}
       <span class="cinema-pessoa fase-{{this.fase}}" title="{{this.rotulo}}{{#if this.desvio}} · ±{{this.desvio}} ms{{/if}}">
         <span class="cinema-ponto" style="--cor: {{this.cor}}"></span>{{this.nome}}
+        {{#if this.telaCheia}}<i class="fa-solid fa-expand cinema-cheia" title="{{localize 'CINEMA.EmTelaCheia'}}"></i>{{/if}}
         {{#if this.somBloqueado}}<i class="fa-solid fa-volume-xmark" title="{{localize 'CINEMA.SomBloqueadoHint'}}"></i>{{/if}}
         {{#if this.engasgando}}<i class="fa-solid fa-temperature-high" title="{{localize 'CINEMA.EngasgandoHint'}} ({{this.perdidos}}%)"></i>{{/if}}
       </span>
       {{/each}}
     </div>
+  </div>
+  {{/if}}
+
+  {{#if presentes.length}}
+  <div class="cinema-presentes">
+    {{#each presentes}}
+    <span class="cinema-presente {{#if this.telaCheia}}cheia{{/if}}"
+          title="{{#if this.telaCheia}}{{localize 'CINEMA.EmTelaCheia'}}{{else}}{{localize 'CINEMA.NaoEmTelaCheia'}}{{/if}}">
+      <span class="cinema-ponto" style="--cor: {{this.cor}}"></span>{{this.nome}}
+      {{#if this.telaCheia}}<i class="fa-solid fa-expand"></i>{{/if}}
+    </span>
+    {{/each}}
   </div>
   {{/if}}
 
@@ -72,7 +85,10 @@
             {{#if this.audiencia}}{{#each this.audiencia}}<span class="cinema-ponto" style="--cor: {{this.cor}}" title="{{this.nome}}"></span>{{/each}}
             {{else}}{{localize "CINEMA.Todos"}}{{/if}}
           </span>
-          {{#if this.preCarregar}}<i class="fa-solid fa-bolt cinema-auto" title="{{localize 'CINEMA.PreCarregarAoEntrar'}}"></i>{{/if}}
+          <span class="cinema-flags">
+            {{#if this.pedirTelaCheia}}<i class="fa-solid fa-expand" title="{{localize 'CINEMA.PedirTelaCheia'}}"></i>{{/if}}
+            {{#if this.preCarregar}}<i class="fa-solid fa-bolt cinema-auto" title="{{localize 'CINEMA.PreCarregarAoEntrar'}}"></i>{{/if}}
+          </span>
         </div>
       </div>
       <div class="cinema-acoes">

@@ -49,6 +49,7 @@ export async function adicionar(src) {
     ...meta,
     audiencia: null,          // null = todos os jogadores
     preCarregar: true,        // baixa sozinho quando o jogador entra
+    pedirTelaCheia: true,     // mostra o ⛶ no preto a quem não estiver em tela cheia
     volume: 1,                // multiplica o volume de cada cliente
     criado: Date.now()
   };
