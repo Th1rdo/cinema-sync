@@ -1,0 +1,54 @@
+<section class="cinema-painel">
+
+  <div class="cinema-arquivo">
+    <label>{{localize "CINEMA.Video"}}</label>
+    <div class="cinema-linha">
+      <input type="text" value="{{cue.src}}" placeholder="{{localize 'CINEMA.NenhumVideo'}}" readonly>
+      <button type="button" data-action="escolher">
+        <i class="fa-solid fa-folder-open"></i> {{localize "CINEMA.Escolher"}}
+      </button>
+    </div>
+  </div>
+
+  <div class="cinema-passos">
+    <button type="button" data-action="armar" {{#unless cue}}disabled{{/unless}}>
+      <i class="fa-solid fa-download"></i> 1. {{localize "CINEMA.Armar"}}
+    </button>
+    <button type="button" data-action="cortina" {{#unless cue}}disabled{{/unless}}>
+      <i class="fa-solid fa-moon"></i> 2. {{localize "CINEMA.Cortina"}}
+    </button>
+    <button type="button" class="cinema-exibir" data-action="exibir" {{#unless podeExibir}}disabled{{/unless}}>
+      <i class="fa-solid fa-play"></i> 3. {{localize "CINEMA.Exibir"}}
+    </button>
+  </div>
+
+  <div class="cinema-plateia">
+    <header>
+      <span>{{localize "CINEMA.Plateia"}}</span>
+      <span class="cinema-contador {{#if todosProntos}}ok{{/if}}">{{prontos}}/{{total}}</span>
+      {{#if desvioMax}}<span class="cinema-desvio" title="{{localize 'CINEMA.DesvioHint'}}">±{{desvioMax}} ms</span>{{/if}}
+    </header>
+
+    {{#each jogadores}}
+    <div class="cinema-jogador fase-{{this.fase}}">
+      <span class="cinema-ponto" style="--cor: {{this.cor}}"></span>
+      <span class="cinema-nome">{{this.nome}}</span>
+      {{#if this.carregando}}
+        <span class="cinema-barra"><span style="width: {{this.pct}}%"></span></span>
+        <span class="cinema-pct">{{this.pct}}%</span>
+      {{else}}
+        <span class="cinema-estado">{{this.rotulo}}</span>
+      {{/if}}
+      {{#if this.erro}}<span class="cinema-erro" title="{{this.erro}}"><i class="fa-solid fa-triangle-exclamation"></i></span>{{/if}}
+    </div>
+    {{/each}}
+
+    {{#unless jogadores.length}}<p class="cinema-vazio">{{localize "CINEMA.SemJogadores"}}</p>{{/unless}}
+  </div>
+
+  <footer>
+    <button type="button" class="cinema-parar" data-action="encerrar">
+      <i class="fa-solid fa-stop"></i> {{localize "CINEMA.Encerrar"}}
+    </button>
+  </footer>
+</section>

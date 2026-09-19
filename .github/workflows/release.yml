@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Testes
+        run: node --test test/sync.test.mjs && python3 test/verificar.py
+
+      - name: Sincronizar versão e URLs
+        run: |
+          python3 - "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" <<'PY'
+          import json, sys
+          tag, repo = sys.argv[1], sys.argv[2]
+          url = f"https://github.com/{repo}"
+          m = json.load(open("module.json", encoding="utf-8"))
+          m["version"] = tag.lstrip("v")
+          m["url"] = url
+          m["manifest"] = f"{url}/releases/latest/download/module.json"
+          m["download"] = f"{url}/releases/download/{tag}/cinema-sync.zip"
+          json.dump(m, open("module.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+          print(m["download"])
+          PY
+
+      - name: Empacotar (module.json na raiz, sem ferramental)
+        run: |
+          zip -qr cinema-sync.zip . \
+            -x ".git/*" ".github/*" "test/*" "package.json" "*.DS_Store" "cinema-sync.zip"
+
+      - name: Publicar release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            module.json
+            cinema-sync.zip

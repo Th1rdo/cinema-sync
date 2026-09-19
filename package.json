@@ -1,0 +1,9 @@
+{
+  "name": "cinema-sync",
+  "private": true,
+  "type": "module",
+  "description": "Ferramental de desenvolvimento do módulo. O Foundry não usa este arquivo.",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}
