@@ -56,5 +56,7 @@
   "CINEMA.EncerrarTodos": "Stop the scene for everyone",
   "CINEMA.PedirTelaCheia": "Fullscreen when the player clicks the scene",
   "CINEMA.EmTelaCheia": "In fullscreen",
-  "CINEMA.NaoEmTelaCheia": "In the browser window"
+  "CINEMA.NaoEmTelaCheia": "In the browser window",
+  "CINEMA.TelaCheia": "Fullscreen",
+  "CINEMA.SairTelaCheia": "Exit fullscreen"
 }

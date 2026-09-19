@@ -56,5 +56,7 @@
   "CINEMA.EncerrarTodos": "Encerrar a cena para todos",
   "CINEMA.PedirTelaCheia": "Tela cheia quando o jogador clica na cena",
   "CINEMA.EmTelaCheia": "Em tela cheia",
-  "CINEMA.NaoEmTelaCheia": "Na janela do navegador"
+  "CINEMA.NaoEmTelaCheia": "Na janela do navegador",
+  "CINEMA.TelaCheia": "Tela cheia",
+  "CINEMA.SairTelaCheia": "Sair da tela cheia"
 }

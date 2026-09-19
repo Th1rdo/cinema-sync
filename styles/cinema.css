@@ -13,6 +13,23 @@
 }
 #cinema-sync-overlay .cinema-palco { width: 100%; height: 100%; display: grid; place-items: center; }
 
+/* controles de player de vídeo: só com o rato em movimento */
+#cinema-sync-overlay.cinema-mexeu { cursor: default; }
+#cinema-sync-overlay .cinema-btn-telacheia {
+  position: absolute; right: 1.4rem; bottom: 1.4rem;
+  width: 2.6rem; height: 2.6rem; padding: 0;
+  display: grid; place-items: center;
+  border-radius: 6px; border: 1px solid #ffffff30;
+  background: #000000a0; color: #fff; font-size: 1.05rem;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s ease, background .15s ease;
+  cursor: pointer;
+}
+#cinema-sync-overlay.cinema-mexeu .cinema-btn-telacheia { opacity: .85; pointer-events: auto; }
+#cinema-sync-overlay .cinema-btn-telacheia:hover { opacity: 1; background: #b1161a; }
+#cinema-sync-overlay .cinema-btn-telacheia.cinema-inutil,
+#cinema-sync-overlay .cinema-btn-telacheia[hidden] { display: none; }   /* o display: grid acima venceria o hidden */
+
 #cinema-sync-overlay .cinema-video,
 .cinema-monitor .cinema-video {
   max-width: 100%;

@@ -19,6 +19,7 @@ class TelaDeCinema {
   #watchdog = null;
   #entrouFullscreen = false;
   #telaCheiaPermitida = true;
+  #esconderControles = null;
 
   get ativo() { return !!this.#root; }
 
@@ -34,6 +35,7 @@ class TelaDeCinema {
     // ainda aceita o pedido: entra em tela cheia sem mostrar nada. Pedido feito
     // já, antes de qualquer espera, enquanto o clique ainda vale.
     this.#telaCheiaPermitida = item.pedirTelaCheia ?? true;
+    root.querySelector(".cinema-btn-telacheia").hidden = !this.#telaCheiaPermitida;
     if (this.#telaCheiaPermitida && cliqueAindaVale()) this.#entrarEmTelaCheia();
 
     const volume = game.settings.get(MODULE_ID, "volume") * (item.volume ?? 1);
@@ -81,6 +83,38 @@ class TelaDeCinema {
     } catch { /* recusado: o overlay continua a cobrir a janela */ }
   }
 
+  /**
+   * Como num player de vídeo: mexer o rato mostra o cursor e o botão de tela
+   * cheia; dois segundos parado, somem. Quem não mexe o rato não vê nada.
+   */
+  #aoMexer = () => {
+    if (!this.#root) return;
+    this.#root.classList.add("cinema-mexeu");
+    clearTimeout(this.#esconderControles);
+    this.#esconderControles = setTimeout(() => this.#root?.classList.remove("cinema-mexeu"), 2000);
+  };
+
+  /** O botão alterna. O clique nele é o gesto que o navegador exige. */
+  #aoBotaoTelaCheia = (ev) => {
+    ev.stopPropagation();                         // não deixar o clique da tela repetir o pedido
+    if (document.fullscreenElement === this.#root) {
+      document.exitFullscreen().catch(() => {});
+      this.#entrouFullscreen = false;
+    } else {
+      this.#entrarEmTelaCheia();
+    }
+  };
+
+  #atualizarBotao = () => {
+    const btn = this.#root?.querySelector(".cinema-btn-telacheia");
+    if (!btn) return;
+    const nossa = document.fullscreenElement === this.#root;
+    // já no ecrã inteiro pelo navegador (F11, app): o botão não teria o que fazer
+    btn.classList.toggle("cinema-inutil", !nossa && estaEmTelaCheia());
+    btn.querySelector("i").className = nossa ? "fa-solid fa-compress" : "fa-solid fa-expand";
+    btn.title = game.i18n.localize(nossa ? "CINEMA.SairTelaCheia" : "CINEMA.TelaCheia");
+  };
+
   /** Esc: cada jogador pode sair da própria tela; o mestre vê "saiu". */
   #aoTeclar = (ev) => {
     if (ev.key !== "Escape" || !this.#root || document.fullscreenElement) return;
@@ -105,6 +139,8 @@ class TelaDeCinema {
     this.#entrouFullscreen = false;
 
     window.removeEventListener("keydown", this.#aoTeclar, true);
+    document.removeEventListener("fullscreenchange", this.#atualizarBotao);
+    clearTimeout(this.#esconderControles);
     root.remove();
     document.body.classList.remove("cinema-ativo");
     descongelarCanvas();
@@ -118,11 +154,18 @@ class TelaDeCinema {
     root.id = "cinema-sync-overlay";
     root.innerHTML = `
       <div class="cinema-palco"></div>
-      <div class="cinema-som" hidden>${game.i18n.localize("CINEMA.CliqueParaSom")}</div>`;
+      <div class="cinema-som" hidden>${game.i18n.localize("CINEMA.CliqueParaSom")}</div>
+      <button type="button" class="cinema-btn-telacheia" title="${game.i18n.localize("CINEMA.TelaCheia")}">
+        <i class="fa-solid fa-expand"></i>
+      </button>`;
     root.addEventListener("click", this.#aoClicar);
+    root.addEventListener("mousemove", this.#aoMexer);
+    root.querySelector(".cinema-btn-telacheia").addEventListener("click", this.#aoBotaoTelaCheia);
+    document.addEventListener("fullscreenchange", this.#atualizarBotao);
     window.addEventListener("keydown", this.#aoTeclar, true);
     document.body.appendChild(root);
     this.#root = root;
+    this.#atualizarBotao();
     return root;
   }
 

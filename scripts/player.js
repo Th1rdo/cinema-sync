@@ -48,7 +48,11 @@ export class Reprodutor {
     v.preload = "auto";
     v.volume = volume;
     v.muted = mudo;
-    v.addEventListener("ended", () => this.#onFim?.(), { once: true });
+    v.addEventListener("ended", () => {
+      clearInterval(this.#loop);                // acabou: nada mais para conferir
+      this.#loop = null;
+      this.#onFim?.();
+    }, { once: true });
     // buffer secou: nada de pular agora — seek durante buffering aborta o
     // download em curso e prolonga a própria travada. Confere uma vez, na volta.
     v.addEventListener("waiting", () => { this.#esperandoBuffer = true; });

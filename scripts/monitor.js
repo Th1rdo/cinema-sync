@@ -38,7 +38,12 @@ export class Monitor extends HandlebarsApplicationMixin(ApplicationV2) {
     return m;
   }
 
-  static parar() { Monitor.#instancia?.#desmontar(); }
+  static parar() {
+    const m = Monitor.#instancia;
+    if (!m) return;
+    if (m.rendered) m.close();          // _onClose desmonta
+    else m.#desmontar();
+  }
 
   _onRender() {
     if (this.#pendente) this.#montar();
@@ -58,7 +63,10 @@ export class Monitor extends HandlebarsApplicationMixin(ApplicationV2) {
       onRelato: (r) => enviar(MSG.STATUS, { ...ids, phase: PHASE.PLAYING, ...r }, { local: true }),
       onFim: () => {
         enviar(MSG.STATUS, { ...ids, phase: PHASE.ENDED }, { local: true });
-        restaurarMusica();
+        // antes a janela ficava aberta no último fotograma, a segurar o
+        // decodificador e o vídeo inteiro em memória depois da cena acabar
+        this.#desmontar();
+        if (game.settings.get(MODULE_ID, "fecharNoFim")) this.close();
       }
     });
     this.#reprodutor.agendar(startAt);

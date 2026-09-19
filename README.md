@@ -53,11 +53,15 @@ Enquanto a cena passa, nos jogadores: o **canvas do Foundry sai do ar** (1 fps, 
 
 ## Tela cheia
 
-Nada aparece na tela a pedir tela cheia. A cena vai para o ecrã inteiro quando o jogador:
+Nada aparece na tela a pedir tela cheia. Como num player de vídeo, **mexer o rato** mostra o
+cursor e um botão ⛶ no canto; dois segundos parado, somem. A cena vai para o ecrã inteiro quando o
+jogador:
 
-- **clica durante a cutscene** — no preto ou já com o filme a correr, ou
+- **clica no ⛶** (ou em qualquer lugar da cena), ou
 - **tinha acabado de clicar quando ela começou** (moveu um token, abriu uma ficha): entra sozinho,
   sem mostrar nada.
+
+O mesmo botão tira da tela cheia.
 
 A tela cheia é só da cena e é desfeita no fim — o alt-tab depois fica intocado. Quem não clicar vê
 a cena a encher a janela do navegador.
@@ -78,7 +82,7 @@ naquela cena. Na janela Cinema, o mestre vê um ⛶ verde em quem já está a ve
 
 ## O que o mestre vê
 
-Uma **janela móvel** com a cena, com som — sem perder HUD nem canvas. Passando o mouse, aparece
+Uma **janela móvel** com a cena, com som — sem perder HUD nem canvas. Fecha sozinha no fim e liberta o vídeo. Passando o mouse, aparece
 o botão para encerrar a cena para todos. Na janela Cinema, a faixa *No ar* mostra o tempo da
 cena e cada jogador: assistindo, saiu, 🔇 som bloqueado, 🌡 perdendo quadros.
 
