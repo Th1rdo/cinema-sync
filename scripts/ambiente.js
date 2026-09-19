@@ -69,9 +69,38 @@ export function descongelarCanvas() {
   }
 }
 
-/** O Foundry reconfigura o ticker quando o canvas é redesenhado: re-congela. */
+// ------------------------------------------------------------------ alívio (mestre, opcional)
+let alivio = null;
+
+/**
+ * Baixa o canvas do mestre para `fps` enquanto ele vê a cena no monitor.
+ * Opcional e desligado por padrão: o mestre continua a ver e a mexer no canvas,
+ * só com menos quadros. Nunca sobe o fps de quem já tem um teto menor.
+ */
+export function aliviarCanvas(fps = 30) {
+  const ticker = canvas?.app?.ticker;
+  if (!ticker || alivio) return;
+  const atual = ticker.maxFPS;
+  if (atual && atual <= fps) return;
+  alivio = { maxFPS: atual, fps };
+  ticker.maxFPS = fps;
+}
+
+export function desaliviarCanvas() {
+  if (!alivio) return;
+  try { if (canvas?.app?.ticker) canvas.app.ticker.maxFPS = alivio.maxFPS; }
+  finally { alivio = null; }
+}
+
+/** O Foundry reconfigura o ticker quando o canvas é redesenhado: re-aplica o que estava ativo. */
 export function canvasFoiRedesenhado() {
-  if (!canvasGuardado) return;
-  canvasGuardado = null;
-  congelarCanvas();
+  if (canvasGuardado) {
+    canvasGuardado = null;
+    congelarCanvas();
+  }
+  if (alivio) {
+    const { fps } = alivio;
+    alivio = null;
+    aliviarCanvas(fps);
+  }
 }

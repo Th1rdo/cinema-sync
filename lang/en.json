@@ -58,5 +58,7 @@
   "CINEMA.EmTelaCheia": "In fullscreen",
   "CINEMA.NaoEmTelaCheia": "In the browser window",
   "CINEMA.TelaCheia": "Fullscreen",
-  "CINEMA.SairTelaCheia": "Exit fullscreen"
+  "CINEMA.SairTelaCheia": "Exit fullscreen",
+  "CINEMA.Config.AliviarCanvas": "Ease the GM canvas during scenes",
+  "CINEMA.Config.AliviarCanvasHint": "While you watch the scene in the monitor, your canvas drops to 30 fps and returns to normal afterwards. Saves GPU; the canvas is slightly less smooth only during the scene."
 }

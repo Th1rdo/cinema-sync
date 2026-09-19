@@ -58,5 +58,7 @@
   "CINEMA.EmTelaCheia": "Em tela cheia",
   "CINEMA.NaoEmTelaCheia": "Na janela do navegador",
   "CINEMA.TelaCheia": "Tela cheia",
-  "CINEMA.SairTelaCheia": "Sair da tela cheia"
+  "CINEMA.SairTelaCheia": "Sair da tela cheia",
+  "CINEMA.Config.AliviarCanvas": "Aliviar o canvas do mestre durante a cena",
+  "CINEMA.Config.AliviarCanvasHint": "Enquanto vês a cena no monitor, o teu canvas desce para 30 fps e volta ao normal no fim. Poupa GPU; o canvas fica um pouco menos fluido só durante a cena."
 }

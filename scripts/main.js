@@ -29,6 +29,11 @@ Hooks.once("init", () => {
     scope: "world", config: true, type: Boolean, default: true
   });
 
+  game.settings.register(MODULE_ID, "aliviarCanvasMestre", {
+    name: "CINEMA.Config.AliviarCanvas", hint: "CINEMA.Config.AliviarCanvasHint",
+    scope: "client", config: true, type: Boolean, default: false
+  });
+
   game.settings.register(MODULE_ID, "silenciarMusica", {
     name: "CINEMA.Config.SilenciarMusica", hint: "CINEMA.Config.SilenciarMusicaHint",
     scope: "world", config: true, type: Boolean, default: true

@@ -86,6 +86,19 @@ Uma **janela móvel** com a cena, com som — sem perder HUD nem canvas. Fecha s
 o botão para encerrar a cena para todos. Na janela Cinema, a faixa *No ar* mostra o tempo da
 cena e cada jogador: assistindo, saiu, 🔇 som bloqueado, 🌡 perdendo quadros.
 
+## Desempenho
+
+- **Nos jogadores, durante a cena:** o canvas do Foundry desce para 1 fps e fica invisível, e nada do
+  que está tapado pelo preto é pintado — chat, sidebar, hotbar, fichas abertas. Só visibilidade:
+  nada é fechado e tudo volta no fim, redesenhado *por baixo* do fade, para a mesa já lá estar quando
+  o preto some.
+- **Nas janelas do módulo:** sem o `backdrop-filter: blur` que o Foundry v13+ põe em toda janela. Ele
+  desfoca o canvas por trás a cada frame; como as nossas janelas são opacas, o desfoque nem se via.
+- **Mestre, opcional:** *Aliviar o canvas do mestre durante a cena* baixa o teu canvas para 30 fps
+  enquanto vês o monitor, e devolve no fim.
+
+Para medir no teu mundo: `canvas.activateFPSMeter()` na consola (F12) mostra os fps do canvas.
+
 ## Como a sincronia funciona
 
 O mestre não manda "toca agora": manda "toca no instante `T`", medido em `game.time.serverTime`
@@ -115,6 +128,7 @@ Um 4K de 80 s e 194 MB vira algo perto de 40 MB.
 | Volume das cutscenes | por computador | 0.8 |
 | O mestre assiste numa janela | mundo | sim |
 | Silenciar a música durante a cutscene | mundo | sim |
+| Aliviar o canvas do mestre durante a cena | por computador | não |
 | Fechar ao terminar | mundo | sim |
 
 ## API

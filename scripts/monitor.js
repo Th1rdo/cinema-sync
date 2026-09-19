@@ -1,7 +1,7 @@
 import { MODULE_ID, MSG, PHASE } from "./const.js";
 import { enviar } from "./net.js";
 import { Reprodutor } from "./player.js";
-import { abaixarMusica, restaurarMusica } from "./ambiente.js";
+import { abaixarMusica, restaurarMusica, aliviarCanvas, desaliviarCanvas } from "./ambiente.js";
 import { Cinema } from "./cinema.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -56,6 +56,7 @@ export class Monitor extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const ids = { exibicaoId, itemId: item.id, userId: game.user.id };
     abaixarMusica();
+    if (game.settings.get(MODULE_ID, "aliviarCanvasMestre")) aliviarCanvas(30);
     this.#reprodutor = await Reprodutor.criar({
       src: item.src,
       palco: this.element.querySelector(".cinema-monitor-palco"),
@@ -77,6 +78,7 @@ export class Monitor extends HandlebarsApplicationMixin(ApplicationV2) {
     this.#reprodutor.destruir();
     this.#reprodutor = null;
     restaurarMusica();
+    desaliviarCanvas();
   }
 
   /** Fechar a janela só tira o mestre da cena — os jogadores continuam assistindo. */

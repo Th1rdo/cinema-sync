@@ -128,7 +128,16 @@ class TelaDeCinema {
     if (!root) return;
     this.#root = null;
 
+    // a mesa volta a ser desenhada POR BAIXO do preto antes do fade começar:
+    // quando o preto some, ela já está lá, e a música volta junto
+    const devolverMesa = () => {
+      document.body.classList.remove("cinema-ativo");
+      descongelarCanvas();
+      restaurarMusica();
+    };
+
     if (fade) {
+      devolverMesa();
       root.classList.add("cinema-saindo");                 // o filme apaga, depois o preto some
       await new Promise(r => setTimeout(r, 1200));
     }
@@ -142,9 +151,7 @@ class TelaDeCinema {
     document.removeEventListener("fullscreenchange", this.#atualizarBotao);
     clearTimeout(this.#esconderControles);
     root.remove();
-    document.body.classList.remove("cinema-ativo");
-    descongelarCanvas();
-    restaurarMusica();
+    if (!fade) devolverMesa();
     this.#exibicao = null;
   }
 

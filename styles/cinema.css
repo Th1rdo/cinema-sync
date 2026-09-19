@@ -58,9 +58,26 @@
 }
 body.cinema-ativo { overflow: hidden; }
 
+/* durante a cena, nada do que está tapado pelo preto é pintado: chat, sidebar,
+   hotbar, fichas abertas e o próprio canvas. Só visibilidade — nada é fechado
+   nem perde estado, e volta tudo quando a classe sai. */
+body.cinema-ativo > *:not(#cinema-sync-overlay) { visibility: hidden !important; }
+
+/* ====================================================== janelas do módulo
+   O Foundry v13+ põe backdrop-filter: blur(5px) em toda janela: desfoca o
+   canvas por trás a cada frame. As nossas janelas são opacas — o desfoque
+   nem aparece — então é custo de GPU sem nenhum ganho visual. */
+.application.cinema-monitor,
+.application.cinema-app {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.application.cinema-app { background: var(--color-cool-5, #1b1b22); }
+.application.cinema-monitor { background: #000; }
+
 /* ============================================================== o monitor */
 .cinema-monitor .window-content { padding: 0; background: #000; }
-.cinema-monitor .cinema-monitor-palco { width: 100%; height: 100%; display: grid; place-items: center; background: #000; }
+.cinema-monitor .cinema-monitor-palco { width: 100%; height: 100%; display: grid; place-items: center; background: #000; contain: strict; }
 
 /* ============================================================== a janela */
 .cinema-app .window-content { padding: 0; }
