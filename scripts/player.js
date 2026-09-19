@@ -1,6 +1,6 @@
 import { SYNC, log, warn } from "./const.js";
 import { serverNow, scheduleAt, tempoEsperado, decidir } from "./clock.js";
-import { urlLocal } from "./preload.js";
+import { urlParaTocar, soltar } from "./preload.js";
 
 /**
  * Um <video> sincronizado com a mesa.
@@ -11,6 +11,7 @@ import { urlLocal } from "./preload.js";
  */
 export class Reprodutor {
   #v;
+  #url = null;               // blob: local (do cache em disco) ou a URL original
   #startAt = null;
   #ancora = null;            // { server, local } lidos no instante em que o play começou
   #cancelar = null;
@@ -22,17 +23,25 @@ export class Reprodutor {
   #onVisibilidade = () => { if (!document.hidden) this.#conferir("voltou de outra aba"); };
 
   /**
+   * Cria o reprodutor resolvendo antes onde está o vídeo (disco ou rede).
    * @param {object} o
-   * @param {string} o.src          caminho original (o blob do preload é resolvido aqui)
+   * @param {string} o.src          caminho original
    * @param {HTMLElement} o.palco   onde o <video> é montado
    * @param {number} o.volume
    * @param {boolean} [o.mudo]
    * @param {(r: object) => void} [o.onRelato]   desvio, quadros perdidos, correções
    * @param {() => void} [o.onFim]
    */
-  constructor({ src, palco, volume, mudo = false, onRelato, onFim }) {
+  static async criar(o) {
+    const url = await urlParaTocar(o.src);
+    return new Reprodutor({ ...o, url });
+  }
+
+  constructor({ url, palco, volume, mudo = false, onRelato, onFim }) {
     const v = document.createElement("video");
-    v.src = urlLocal(src);
+    this.#url = url;
+    v.src = url;
+    v.classList.add("cinema-video");
     v.playsInline = true;
     v.controls = false;
     v.disablePictureInPicture = true;
@@ -44,6 +53,7 @@ export class Reprodutor {
     // download em curso e prolonga a própria travada. Confere uma vez, na volta.
     v.addEventListener("waiting", () => { this.#esperandoBuffer = true; });
     v.addEventListener("playing", () => {
+      v.classList.add("cinema-no-ar");          // entra do preto em fade (CSS)
       const vinhaTravado = this.#esperandoBuffer;
       this.#esperandoBuffer = false;
       if (vinhaTravado && this.#ancora) this.#conferir("buffer voltou");
@@ -131,6 +141,7 @@ export class Reprodutor {
     this.#v.removeAttribute("src");
     this.#v.load();                 // solta o decodificador na hora
     this.#v.remove();
+    soltar(this.#url);              // devolve a memória do blob
     this.#ancora = null;
   }
 }

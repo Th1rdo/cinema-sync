@@ -4,12 +4,14 @@ export const SOCKET = `module.${MODULE_ID}`;
 
 /** Mensagens do protocolo. Toda mensagem carrega { type, from }. */
 export const MSG = {
-  ARM:    "arm",      // mestre → todos: preparem este vídeo
-  STATUS: "status",   // cliente → mestre: como estou
-  START:  "start",    // mestre → todos: a cena começa em startAt (tempo de servidor)
-  STOP:   "stop",     // mestre → todos: encerrem agora
-  ENDED:  "ended",    // cliente → mestre: o vídeo acabou aqui
-  REJOIN: "rejoin"    // cliente → mestre: cheguei atrasado, o que está rodando?
+  ARM:        "arm",         // mestre → audiência: guardem este vídeo
+  STATUS:     "status",      // cliente → mestre: como estou
+  START:      "start",       // mestre → audiência: a cena começa em startAt (tempo de servidor)
+  STOP:       "stop",        // mestre → todos: encerrem agora
+  REJOIN:     "rejoin",      // cliente → mestre: cheguei atrasado, o que está rodando?
+  INVENTARIO: "inventario",  // cliente → mestre: estes itens eu já tenho em disco
+  CENSO:      "censo",       // mestre → todos: digam-me o que têm (mestre entrou ou recarregou)
+  ESQUECER:   "esquecer"     // mestre → todos: apaguem este vídeo do cache
 };
 
 /** Estados que um cliente reporta ao mestre. */
@@ -40,7 +42,7 @@ export const SYNC = {
   LIMIAR:        0.5,    // durante a cena: só pula se o desvio for real
   RELATO_A_CADA: 10,     // conferências entre um relato e outro ao mestre
   START_TIMEOUT: 20000,  // tela preta que nunca vira vídeo é desfeita
-  ARM_TIMEOUT:   120000
+  ESPERA_MAX:    25000   // "exibir" com alguém ainda baixando: começa sozinho após isto
 };
 
 export const log = (...args) => console.log(`${MODULE_ID} |`, ...args);

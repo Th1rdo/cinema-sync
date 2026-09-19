@@ -1,63 +1,89 @@
 # Cinema — Cutscenes Sincronizadas
 
-Exibe uma cutscene em vídeo **em tela cheia, para a mesa inteira, ao mesmo tempo**, com o áudio junto.
+Cutscenes em vídeo **em tela cheia, para a mesa inteira, ao mesmo tempo**, com o áudio junto —
+e a um clique do mestre no meio da sessão.
 
-Feito para o problema real: quando o mestre dispara um vídeo e uma música por caminhos separados,
-cada jogador recebe num instante diferente, cada um baixa em velocidade diferente, e alguém
-sempre assiste dessincronizado — ou mudo, porque o navegador bloqueou o autoplay.
+## Instalar
 
-## Como funciona
+No Foundry: **Add-on Modules → Install Module** → *Manifest URL*:
 
-**1. Pré-carregar (invisível).** Os clientes baixam o vídeo em background enquanto vocês jogam.
-O mestre acompanha quem já tem, quem está em 60% e quem falhou — e é avisado de antemão se o
-navegador de alguém ainda vai bloquear o som.
+```
+https://github.com/Th1rdo/cinema-sync/releases/latest/download/module.json
+```
 
-**2. Exibir.** O mestre não manda "toca agora": manda "toca no instante `T`", medido em
-`game.time.serverTime`. Os jogadores recebem **3 segundos de tela preta** — a cortina — e o
-filme começa para todos no mesmo instante. O jitter da rede sai da conta.
+## Usar
 
-**Sincroniza uma vez, e bem.** Na largada o cliente ancora o relógio; daí em diante confia no
-próprio relógio monotônico. Só intervém quando algo realmente deu errado — buffer secou,
-alt-tab, reconexão — e aí dá **um** pulo para o ponto certo. Nunca mexe na velocidade:
-`playbackRate ≠ 1` liga o *time-stretching* do áudio, que custa CPU e produz estalos.
+Abra o **Cinema** pela claquete na barra de ferramentas da esquerda (grupo de tokens) ou com
+**Ctrl+Shift+C**.
 
-### Enquanto a cena passa
+1. **Adicionar cutscene** → escolha o vídeo. Ele vira um card, com miniatura e duração.
+2. **▶ no card** — e só. Se todos já têm o vídeo, a cena começa. Se falta alguém, o vídeo
+   é baixado só para quem falta e a cena começa sozinha quando estiverem prontos
+   (ou em 25 s, ou quando você clicar *Começar já*).
+3. **Arraste o card para a hotbar** e a cena passa a ficar a um clique, sem abrir janela nenhuma.
 
-- **O canvas do Foundry sai do ar nos jogadores** (1 fps, invisível) e volta no fim. Sem isso ele
-  continuaria renderizando iluminação e visão a 60 fps atrás da tela preta.
-- **A música das playlists abaixa** e volta ao volume anterior quando a cena termina.
-- **O mestre não entra em tela cheia.** Assiste numa janela móvel, com som, sem perder HUD nem
-  canvas — e com a linha do tempo da cena no painel.
+Em cada card:
 
-O painel mostra, por jogador: progresso de download, estado, desvio real em ms, 🔇 se o som vai
-ser bloqueado, e 🌡 se o computador dele estiver perdendo quadros.
+| Botão | O que faz |
+|---|---|
+| ▶ | exibe para a audiência padrão |
+| 👤✓ | escolhe na hora quem vê (flashback de um personagem só) |
+| ⬇ | baixa agora para a audiência |
+| ⚙ | nome, quem assiste por padrão, pré-carregar ao entrar, volume, remover |
 
-## Requisitos
+O card mostra quantos jogadores já têm o vídeo em disco (`4/5`) e avisa quando o vídeo é 4K.
 
-Foundry VTT **v13+** (verificado na v14). Nenhuma dependência de outro módulo.
+### Pré-carregar ao entrar
 
-Vídeo com **áudio embutido** (`.webm` ou `.mp4`). O módulo checa o codec de cada cliente no
-pré-carregamento e avisa o mestre *antes* da cena, com o nome de quem não consegue tocar.
+Cutscenes marcadas com ⚡ são baixadas sozinhas, em segundo plano, quando o jogador entra no
+mundo — uma de cada vez, para não roubar banda do resto da sessão. **Ficam em disco entre
+sessões:** o jogador baixa uma vez e na semana seguinte já tem.
 
-## Prepare o vídeo (isto importa para o calor)
+## O que o jogador vê
 
-Use **H.264 em `.mp4`, 1080p, 30 fps**. É decodificado em hardware em qualquer máquina.
-VP9/AV1 em `.webm` pode cair em decodificação por software em alguns navegadores — é CPU em vez
-de chip dedicado, e é aí que o computador esquenta. 4K a 60 fps é quatro vezes o trabalho de
-1080p a 30 fps, para um vídeo visto numa janela de navegador.
+Preto por três segundos. O filme entra em fade. No fim, apaga e a mesa volta. Nenhum texto,
+nenhum botão, nenhum cursor — a menos que o navegador tenha bloqueado o som, e aí aparece
+"clique para ouvir".
+
+Durante a cena, o jogador pode clicar (tela cheia do sistema, se o navegador deixar) ou apertar
+**Esc** para sair da própria tela.
+
+Enquanto a cena passa, nos jogadores: o **canvas do Foundry sai do ar** (1 fps, invisível) e a
+**música das playlists abaixa**. Tudo volta no fim.
+
+## O que o mestre vê
+
+Uma **janela móvel** com a cena, com som — sem perder HUD nem canvas. Passando o mouse, aparece
+o botão para encerrar a cena para todos. Na janela Cinema, a faixa *No ar* mostra o tempo da
+cena e cada jogador: assistindo, saiu, 🔇 som bloqueado, 🌡 perdendo quadros.
+
+## Como a sincronia funciona
+
+O mestre não manda "toca agora": manda "toca no instante `T`", medido em `game.time.serverTime`
+(o relógio que o Foundry sincroniza entre todos). Cada cliente espera o próprio atraso local.
+
+Na largada o cliente ancora o relógio e depois confia no próprio relógio monotônico. Só intervém
+quando algo deu errado de verdade — buffer secou, alt-tab, reconexão — e aí dá **um** pulo para o
+ponto certo. Nunca mexe na velocidade do vídeo (isso liga processamento de áudio em CPU e produz
+estalos). Quem cair e voltar entra sincronizado.
+
+## Prepare o vídeo
+
+**H.264 em `.mp4`, 1080p, 30 fps.** 4K é quatro vezes o peso para baixar e decodificar em cada
+jogador, para um vídeo visto numa janela de navegador.
 
 ```bash
-ffmpeg -i entrada.mov -c:v libx264 -preset slow -crf 20 -vf "scale=-2:1080" -r 30 \
+ffmpeg -i entrada.mp4 -c:v libx264 -preset slow -crf 20 -vf "scale=-2:1080" -r 30 \
        -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart cutscene.mp4
 ```
 
-`+faststart` põe os metadados no começo do arquivo: a duração aparece no painel na hora.
+Um 4K de 80 s e 194 MB vira algo perto de 40 MB.
 
 ## Configuração
 
 | Opção | Escopo | Padrão |
 |---|---|---|
-| Volume da cutscene | por cliente | 0.8 |
+| Volume das cutscenes | por computador | 0.8 |
 | O mestre assiste numa janela | mundo | sim |
 | Silenciar a música durante a cutscene | mundo | sim |
 | Fechar ao terminar | mundo | sim |
@@ -65,23 +91,20 @@ ffmpeg -i entrada.mov -c:v libx264 -preset slow -crf 20 -vf "scale=-2:1080" -r 3
 ## API
 
 ```js
-game.cinema.diretor();      // abre o painel
-game.cinema.encerrar();     // fecha a tela neste cliente
-game.cinema.limparCache();  // libera os vídeos guardados em memória
+game.cinema.abrir();                     // janela Cinema
+game.cinema.exibir(id);                  // exibe um item da biblioteca (o que a macro faz)
+game.cinema.exibir(id, [userId, ...]);   // só para esses jogadores
+game.cinema.parar();                     // encerra para todos
+game.cinema.limparCache();               // apaga os vídeos guardados neste computador
 ```
+
+## Requisitos
+
+Foundry **v13+** (verificado na v14). Sem dependências. O cache em disco exige `https`
+(o Forge é); num Foundry local em `http`, o vídeo fica em memória.
 
 ## Desenvolvimento
 
 ```bash
-npm test              # sincronia: re-sync sem correção falsa, buffer, alt-tab, deriva de 10 min
-python3 test/verificar.py   # integridade: ações sem handler, i18n faltando, caminhos quebrados
+npm test     # sincronia, audiência, cache, macro + integridade (ações, i18n, caminhos)
 ```
-
-`package.json` existe só para os testes — o Foundry não o usa.
-
-## Limitações conhecidas
-
-- **Safari não é alvo.** Se algum jogador usar, o codec provavelmente falha (e o painel avisa).
-- Tela cheia do sistema exige um clique recente; sem ele, a sobreposição cobre a janela inteira do navegador.
-- O vídeo vai inteiro para a memória do cliente antes de tocar. Para arquivos muito grandes
-  (centenas de MB), o fallback de streaming entra sozinho, mas o carregamento fica menos preciso.

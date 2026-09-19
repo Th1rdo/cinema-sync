@@ -1,0 +1,89 @@
+<section class="cinema-janela">
+
+  {{#if emCartaz}}
+  <div class="cinema-cartaz {{#if emCartaz.esperando}}esperando{{/if}}">
+    <header>
+      <span class="cinema-selo">
+        {{#if emCartaz.esperando}}<i class="fa-solid fa-hourglass-half"></i> {{localize "CINEMA.Preparando"}}
+        {{else}}<i class="fa-solid fa-circle"></i> {{localize "CINEMA.NoAr"}}{{/if}}
+      </span>
+      <strong class="cinema-cartaz-nome">{{emCartaz.nome}}</strong>
+      <button type="button" class="cinema-parar" data-action="encerrar">
+        <i class="fa-solid fa-stop"></i> {{localize "CINEMA.Encerrar"}}
+      </button>
+    </header>
+
+    {{#if emCartaz.esperando}}
+    <div class="cinema-faltam">
+      <span>{{localize "CINEMA.AindaBaixando"}}</span>
+      {{#each emCartaz.faltam}}<span class="cinema-falta">{{this.nome}} <b>{{this.pct}}%</b></span>{{/each}}
+      <button type="button" data-action="comecarJa"><i class="fa-solid fa-forward"></i> {{localize "CINEMA.ComecarJa"}}</button>
+    </div>
+    {{else}}
+    <div class="cinema-tempo">
+      <span class="cinema-tempo-barra"><span></span></span>
+      <span class="cinema-tempo-texto">0:00</span>
+    </div>
+    {{/if}}
+
+    <div class="cinema-plateia">
+      {{#each emCartaz.plateia}}
+      <span class="cinema-pessoa fase-{{this.fase}}" title="{{this.rotulo}}{{#if this.desvio}} · ±{{this.desvio}} ms{{/if}}">
+        <span class="cinema-ponto" style="--cor: {{this.cor}}"></span>{{this.nome}}
+        {{#if this.somBloqueado}}<i class="fa-solid fa-volume-xmark" title="{{localize 'CINEMA.SomBloqueadoHint'}}"></i>{{/if}}
+        {{#if this.engasgando}}<i class="fa-solid fa-temperature-high" title="{{localize 'CINEMA.EngasgandoHint'}} ({{this.perdidos}}%)"></i>{{/if}}
+      </span>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="cinema-topo">
+    <span>{{localize "CINEMA.Biblioteca"}}</span>
+    <button type="button" data-action="adicionar"><i class="fa-solid fa-plus"></i> {{localize "CINEMA.Adicionar"}}</button>
+  </div>
+
+  {{#if vazio}}
+  <div class="cinema-vazio">
+    <img src="modules/cinema-sync/assets/claquete.svg" alt="">
+    <p>{{localize "CINEMA.VazioTexto"}}</p>
+  </div>
+  {{else}}
+  <div class="cinema-grade">
+    {{#each cards}}
+    <article class="cinema-card {{#if this.emCartaz}}no-ar{{/if}}" data-item-id="{{this.id}}" draggable="true">
+      <div class="cinema-thumb">
+        <img data-miniatura="{{this.id}}" hidden alt="">
+        <img class="cinema-thumb-vazia" src="modules/cinema-sync/assets/claquete.svg" alt="">
+        {{#if this.duracaoTxt}}<span class="cinema-duracao">{{this.duracaoTxt}}</span>{{/if}}
+        {{#if this.peso.rotulo}}<span class="cinema-peso {{#if this.peso.pesado}}pesado{{/if}}" title="{{#if this.peso.pesado}}{{localize 'CINEMA.PesoHint'}}{{/if}}">{{this.peso.rotulo}}</span>{{/if}}
+        <button type="button" class="cinema-play" data-action="exibir" title="{{localize 'CINEMA.ExibirAgora'}}">
+          <i class="fa-solid fa-play"></i>
+        </button>
+      </div>
+      <div class="cinema-info">
+        <strong class="cinema-nome" title="{{this.nome}}">{{this.nome}}</strong>
+        <div class="cinema-meta">
+          <span class="cinema-cache {{#if this.cache.completo}}ok{{/if}}" title="{{localize 'CINEMA.CacheHint'}}">
+            <i class="fa-solid fa-hard-drive"></i> {{this.cache.tem}}/{{this.cache.total}}
+          </span>
+          <span class="cinema-aud" title="{{localize 'CINEMA.AudienciaHint'}}">
+            <i class="fa-solid fa-user-group"></i>
+            {{#if this.audiencia}}{{#each this.audiencia}}<span class="cinema-ponto" style="--cor: {{this.cor}}" title="{{this.nome}}"></span>{{/each}}
+            {{else}}{{localize "CINEMA.Todos"}}{{/if}}
+          </span>
+          {{#if this.preCarregar}}<i class="fa-solid fa-bolt cinema-auto" title="{{localize 'CINEMA.PreCarregarAoEntrar'}}"></i>{{/if}}
+        </div>
+      </div>
+      <div class="cinema-acoes">
+        <button type="button" data-action="exibirPara" title="{{localize 'CINEMA.ExibirParaHint'}}"><i class="fa-solid fa-user-check"></i></button>
+        <button type="button" data-action="preCarregar" title="{{localize 'CINEMA.PreCarregarAgora'}}"><i class="fa-solid fa-download"></i></button>
+        <button type="button" data-action="editar" title="{{localize 'CINEMA.EditarHint'}}"><i class="fa-solid fa-gear"></i></button>
+      </div>
+    </article>
+    {{/each}}
+  </div>
+  <p class="cinema-dica"><i class="fa-solid fa-hand-pointer"></i> {{localize "CINEMA.DicaHotbar"}}</p>
+  {{/if}}
+
+</section>

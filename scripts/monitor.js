@@ -2,6 +2,7 @@ import { MODULE_ID, MSG, PHASE } from "./const.js";
 import { enviar } from "./net.js";
 import { Reprodutor } from "./player.js";
 import { abaixarMusica, restaurarMusica } from "./ambiente.js";
+import { Cinema } from "./cinema.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -15,20 +16,23 @@ export class Monitor extends HandlebarsApplicationMixin(ApplicationV2) {
     tag: "div",
     window: { title: "CINEMA.Monitor", icon: "fa-solid fa-display", resizable: true },
     position: { width: 560, height: 360 },
-    classes: ["cinema-monitor"]
+    classes: ["cinema-monitor"],
+    actions: {
+      encerrarTodos: () => Cinema.parar()      // a macro de um clique precisa de um jeito de parar
+    }
   };
 
   static PARTS = { main: { template: `modules/${MODULE_ID}/templates/monitor.hbs` } };
 
   static #instancia = null;
   #reprodutor = null;
-  #pendente = null;         // { cue, startAt } esperando o primeiro render
+  #pendente = null;         // { item, startAt, exibicaoId } esperando o primeiro render
 
   /** Abre (ou reaproveita) a janela e toca a cena no instante combinado. */
-  static exibir(cue, startAt) {
+  static exibir(exibicao) {
     Monitor.#instancia ??= new Monitor();
     const m = Monitor.#instancia;
-    m.#pendente = { cue, startAt };
+    m.#pendente = exibicao;
     if (m.rendered) m.#montar();
     else m.render({ force: true });
     return m;
@@ -40,20 +44,20 @@ export class Monitor extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.#pendente) this.#montar();
   }
 
-  #montar() {
-    const { cue, startAt } = this.#pendente;
+  async #montar() {
+    const { item, startAt, exibicaoId } = this.#pendente;
     this.#pendente = null;
     this.#desmontar();
 
-    const palco = this.element.querySelector(".cinema-monitor-palco");
+    const ids = { exibicaoId, itemId: item.id, userId: game.user.id };
     abaixarMusica();
-    this.#reprodutor = new Reprodutor({
-      src: cue.src,
-      palco,
-      volume: game.settings.get(MODULE_ID, "volume"),
-      onRelato: (r) => enviar(MSG.STATUS, { cueId: cue.cueId, userId: game.user.id, phase: PHASE.PLAYING, ...r }, { local: true }),
+    this.#reprodutor = await Reprodutor.criar({
+      src: item.src,
+      palco: this.element.querySelector(".cinema-monitor-palco"),
+      volume: game.settings.get(MODULE_ID, "volume") * (item.volume ?? 1),
+      onRelato: (r) => enviar(MSG.STATUS, { ...ids, phase: PHASE.PLAYING, ...r }, { local: true }),
       onFim: () => {
-        enviar(MSG.STATUS, { cueId: cue.cueId, userId: game.user.id, phase: PHASE.ENDED }, { local: true });
+        enviar(MSG.STATUS, { ...ids, phase: PHASE.ENDED }, { local: true });
         restaurarMusica();
       }
     });
