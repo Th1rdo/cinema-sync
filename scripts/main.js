@@ -25,17 +25,6 @@ Hooks.once("init", () => {
     range: { min: 0, max: 1, step: 0.05 }
   });
 
-  game.settings.register(MODULE_ID, "qualidade", {
-    name: "CINEMA.Config.Qualidade", hint: "CINEMA.Config.QualidadeHint",
-    scope: "client", config: true, type: String, default: "auto",
-    choices: {
-      auto: "CINEMA.Config.QualidadeAuto",
-      leve: "CINEMA.Config.QualidadeLeve",
-      original: "CINEMA.Config.QualidadeOriginal"
-    },
-    onChange: () => bib.esquecerDecisoes()
-  });
-
   game.settings.register(MODULE_ID, "mestreAssiste", {
     name: "CINEMA.Config.MestreAssiste", hint: "CINEMA.Config.MestreAssisteHint",
     scope: "world", config: true, type: Boolean, default: true

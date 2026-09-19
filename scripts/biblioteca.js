@@ -1,7 +1,7 @@
 import { MODULE_ID, MSG, PHASE, log, warn } from "./const.js";
 import { enviar } from "./net.js";
 import { guardar, temGuardado, esquecer, suportaCodec, urlParaTocar, soltar } from "./preload.js";
-import { nomeDoArquivo, escolherVersao } from "./logica.js";
+import { nomeDoArquivo, nomeDaVersao, escadaDoItem, escolherDegrau } from "./logica.js";
 
 /**
  * A biblioteca de cutscenes: o que está salvo, o que cada cliente já tem em
@@ -40,13 +40,54 @@ export function lerMetadados(src) {
   });
 }
 
+/**
+ * Procura as versões geradas pelo ferramentas/versoes.sh ao lado do original
+ * ("Cena-1080p.mp4", "Cena-720p.mp4", "Cena-480p.mp4"). Um HEAD por versão:
+ * funciona no Forge e em qualquer host, sem depender da API do FilePicker.
+ */
+export async function detetarVersoes(src, alturaOriginal = 99999) {
+  const encontradas = [];
+  for (const altura of [1440, 1080, 720, 480]) {
+    if (altura >= alturaOriginal) continue;
+    const candidata = nomeDaVersao(src, altura);
+    try {
+      const r = await fetch(candidata, { method: "HEAD" });
+      if (r.ok) encontradas.push({ src: candidata, altura });
+    } catch { /* não existe ou não é acessível */ }
+  }
+  return encontradas;
+}
+
+/**
+ * Procura versões novas de todas as cutscenes (o mestre carregou-as no Forge
+ * depois de adicionar a cutscene). Uma vez por sessão por item; só grava se mudou.
+ */
+const jaProcurados = new Set();
+export async function atualizarVersoes() {
+  if (!game.user.isGM) return false;
+  let mudou = false;
+  const lista = [];
+  for (const item of itens()) {
+    if (jaProcurados.has(item.id)) { lista.push(item); continue; }
+    jaProcurados.add(item.id);
+    const versoes = await detetarVersoes(item.src, item.altura ?? 99999);
+    const antes = JSON.stringify(item.versoes ?? []);
+    if (JSON.stringify(versoes) !== antes) mudou = true;
+    lista.push({ ...item, versoes });
+  }
+  if (mudou) await gravar(lista);
+  return mudou;
+}
+
 export async function adicionar(src) {
   const meta = await lerMetadados(src);
+  const versoes = await detetarVersoes(src, meta.altura ?? 99999);
   const item = {
     id: foundry.utils.randomID(),
     nome: nomeDoArquivo(src),
     src,
     ...meta,
+    versoes,                  // escada detetada pelo nome; o original é o degrau de cima
     audiencia: null,          // null = todos os jogadores
     preCarregar: true,        // baixa sozinho quando o jogador entra
     pedirTelaCheia: true,     // mostra o ⛶ no preto a quem não estiver em tela cheia
@@ -65,7 +106,7 @@ export async function remover(id) {
   const item = obter(id);
   await gravar(itens().filter(i => i.id !== id));
   localStorage.removeItem(chaveMiniatura(id));
-  if (item) for (const src of [item.src, item.srcLeve].filter(Boolean)) enviar(MSG.ESQUECER, { src }, { local: true });
+  if (item) for (const { src } of escadaDoItem(item)) enviar(MSG.ESQUECER, { src }, { local: true });
 }
 
 // ------------------------------------------------------------------ miniaturas
@@ -122,52 +163,60 @@ async function gerarMiniatura(item) {
 }
 
 // ------------------------------------------------------------------ versão
-const CHAVE_LEMBRAR = `${MODULE_ID}.lembrarLeve`;
-const decisoes = new Map();    // itemId → { src, versao }: pré-carga e exibição concordam
+const CHAVE_TETO = `${MODULE_ID}.teto`;
+const decisoes = new Map();    // itemId → { src, altura, degrau, escada }: pré-carga e exibição concordam
 
-/** O navegador deste computador toca o original com fluidez, e por hardware? */
-async function capacidade(item) {
+const tetoLocal = () => Number(localStorage.getItem(CHAVE_TETO)) || undefined;
+
+/** Taxa típica por altura, para perguntar ao navegador se decodifica com folga. */
+const taxa = (h) => h >= 2160 ? 20e6 : h >= 1440 ? 12e6 : h >= 1080 ? 8e6 : h >= 720 ? 4e6 : 2e6;
+
+/** Por altura da escada: o navegador deste computador toca com fluidez, e por hardware? */
+async function capacidades(item, escada) {
   const mc = navigator.mediaCapabilities;
-  if (!mc?.decodingInfo || !item.largura || !item.altura) return {};
+  if (!mc?.decodingInfo || escada.length < 2) return {};
   const webm = /\.webm($|\?)/i.test(item.src);
-  try {
-    const r = await mc.decodingInfo({
-      type: "file",
-      video: {
-        contentType: webm ? 'video/webm; codecs="vp09.00.51.08"' : 'video/mp4; codecs="avc1.640033"',
-        width: item.largura, height: item.altura,
-        bitrate: item.largura * item.altura >= 3840 * 2160 ? 20_000_000 : 8_000_000,
-        framerate: 30
-      }
-    });
-    return { suave: r.smooth, eficiente: r.powerEfficient };
-  } catch { return {}; }
+  const proporcao = item.largura && item.altura ? item.largura / item.altura : 16 / 9;
+  const resultado = {};
+  for (const { altura } of escada) {
+    if (altura > 10000) continue;
+    try {
+      const r = await mc.decodingInfo({
+        type: "file",
+        video: {
+          contentType: webm ? 'video/webm; codecs="vp09.00.51.08"' : 'video/mp4; codecs="avc1.640033"',
+          width: Math.round(altura * proporcao), height: altura, bitrate: taxa(altura), framerate: 30
+        }
+      });
+      resultado[altura] = { suave: r.smooth, eficiente: r.powerEfficient };
+    } catch { /* sem resposta: não rebaixa */ }
+  }
+  return resultado;
 }
 
-/** Qual ficheiro este computador usa para este item. */
+/** Qual degrau da escada este computador usa para este item. */
 export async function srcParaEste(item) {
   if (decisoes.has(item.id)) return decisoes.get(item.id);
-  const { suave, eficiente } = item.srcLeve ? await capacidade(item) : {};
-  const versao = escolherVersao({
-    temLeve: !!item.srcLeve,
-    preferencia: game.settings.get(MODULE_ID, "qualidade"),
-    lembrarLeve: localStorage.getItem(CHAVE_LEMBRAR) === "1",
-    suave, eficiente,
+  const escada = escadaDoItem(item);
+  const degrau = escolherDegrau({
+    escada,
+    teto: tetoLocal(),
     alturaTela: Math.round((globalThis.screen?.height ?? 0) * (globalThis.devicePixelRatio ?? 1)),
-    alturaLeve: item.alturaLeve ?? 1080
+    capacidades: await capacidades(item, escada)
   });
-  const decisao = { src: versao === "leve" ? item.srcLeve : item.src, versao };
+  const decisao = { ...escada[degrau], degrau, escada };
   decisoes.set(item.id, decisao);
   return decisao;
 }
 
-/** Este computador perdeu muitos quadros no original: daí em diante, leve. */
-export function lembrarQueSofreu() {
-  localStorage.setItem(CHAVE_LEMBRAR, "1");
+/** Este computador sofreu nesta altura: daí em diante, no máximo `altura`. */
+export function lembrarTeto(altura) {
+  const atual = tetoLocal();
+  if (!atual || altura < atual) localStorage.setItem(CHAVE_TETO, String(altura));
   decisoes.clear();
 }
 
-/** A biblioteca mudou (item editado, versão leve adicionada): decide de novo. */
+/** A biblioteca mudou (versões novas, preferência): cada computador decide de novo. */
 export const esquecerDecisoes = () => decisoes.clear();
 
 // ------------------------------------------------------------------ cliente
@@ -187,9 +236,10 @@ export async function relatarInventario() {
 
 /** Baixa um item (na versão deste computador), reportando progresso ao mestre. */
 export async function baixar(item) {
-  const { src, versao } = await srcParaEste(item);
+  const { src, altura, original } = await srcParaEste(item);
   const reportar = (phase, extra = {}) =>
-    enviar(MSG.STATUS, { itemId: item.id, userId: game.user.id, phase, versao, ...extra }, { local: game.user.isGM });
+    enviar(MSG.STATUS, { itemId: item.id, userId: game.user.id, phase, versao: `${altura}p`, original: !!original, ...extra },
+           { local: game.user.isGM });
 
   if (!suportaCodec(src)) return reportar(PHASE.NOCODEC, { erro: "este navegador não toca este formato" });
 
@@ -204,9 +254,27 @@ export async function baixar(item) {
       reportar(PHASE.LOADING, { pct, mb: Math.round(bytes / 1e6) });
     });
     reportar(PHASE.READY, { pct: 1, somBloqueado: !!game.audio?.locked });
+    preparaDegrauDeBaixo(item);
   } catch (err) {
     console.error(`${MODULE_ID} | download falhou (${src})`, err);
     reportar(PHASE.FAILED, { erro: err.message || String(err) });
+  }
+}
+
+/**
+ * O degrau imediatamente abaixo, guardado em silêncio: se este computador
+ * engasgar a meio da cena, a troca é instantânea em vez de depender da rede.
+ * Só um degrau — o custo fica pequeno (uns 40 MB para quem toca 4K).
+ */
+async function preparaDegrauDeBaixo(item) {
+  const { degrau, escada } = await srcParaEste(item);
+  const baixo = escada[degrau + 1];
+  if (!baixo || await temGuardado(baixo.src)) return;
+  try {
+    await guardar(baixo.src);
+    log(`degrau de reserva pronto: ${item.nome} ${baixo.altura}p`);
+  } catch (err) {
+    warn(`degrau de reserva falhou (${baixo.altura}p): ${err.message}`);   // não é grave: a troca vai pela rede
   }
 }
 

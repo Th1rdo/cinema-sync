@@ -74,47 +74,84 @@ test("sem informação de tela, não arrisca", () => {
   assert.equal(pareceTelaCheia({ innerWidth: 1512, innerHeight: 982 }), false);
 });
 
-import { quemAguardar, escolherVersao } from "../scripts/logica.js";
+import { quemAguardar, nomeDaVersao, escadaDoItem, escolherDegrau, deveDescer } from "../scripts/logica.js";
 
 test("não espera por quem já falhou o download ou não tem codec", () => {
   const inv = new Map([["ana", new Set(["x"])]]);
   const relatos = new Map([
     ["bia", { itemId: "x", phase: "failed" }],
     ["caio", { itemId: "x", phase: "loading" }],
-    ["davi", { itemId: "outro", phase: "failed" }]      // falhou OUTRA cutscene: conta
+    ["davi", { itemId: "outro", phase: "failed" }]
   ]);
   assert.deepEqual(quemAguardar(["ana", "bia", "caio", "davi"], inv, relatos, "x"), ["caio", "davi"]);
 });
 
-const maquina = { temLeve: true, alturaTela: 1964, suave: true, eficiente: true };
-
-test("sem versão leve, sempre o original", () => {
-  assert.equal(escolherVersao({ ...maquina, temLeve: false, suave: false }), "original");
+test("nome da versão junta o sufixo antes da extensão", () => {
+  assert.equal(nomeDaVersao("cenas/O Uliginoso (Cinematic).mp4", 720), "cenas/O Uliginoso (Cinematic)-720p.mp4");
+  assert.equal(nomeDaVersao("https://cdn.x/a%20b.mp4?v=2", 1080), "https://cdn.x/a%20b-1080p.mp4?v=2");
 });
 
-test("máquina forte e ecrã grande: original", () => {
-  assert.equal(escolherVersao(maquina), "original");
+test("escada ordenada da mais pesada para a mais leve, com o srcLeve antigo incluído", () => {
+  const e = escadaDoItem({ src: "o.mp4", altura: 2160, versoes: [{ src: "o-480p.mp4", altura: 480 }, { src: "o-1080p.mp4", altura: 1080 }], srcLeve: "leve.mp4", alturaLeve: 720 });
+  assert.deepEqual(e.map(d => d.altura), [2160, 1080, 720, 480]);
+  assert.equal(e[0].original, true);
 });
 
-test("navegador diz que engasga ou decodifica por CPU: leve", () => {
-  assert.equal(escolherVersao({ ...maquina, suave: false }), "leve");
-  assert.equal(escolherVersao({ ...maquina, eficiente: false }), "leve");
+const escada = [2160, 1080, 720, 480].map(altura => ({ src: `${altura}.mp4`, altura }));
+const alturaDe = (i) => escada[i].altura;
+
+test("sem outras versões, sempre o original", () => {
+  assert.equal(escolherDegrau({ escada: escada.slice(0, 1), capacidades: { 2160: { suave: false } } }), 0);
 });
 
-test("ecrã de 1080p: leve, o 4K não se veria", () => {
-  assert.equal(escolherVersao({ ...maquina, alturaTela: 1080 }), "leve");
-  assert.equal(escolherVersao({ ...maquina, alturaTela: 1440 }), "original");   // 1440p já mostra mais que 1080p
+const forte = { 2160: { suave: true, eficiente: true }, 1080: { suave: true, eficiente: true } };
+
+test("máquina forte, confirmada pelo navegador, e ecrã Retina: 4K", () => {
+  assert.equal(alturaDe(escolherDegrau({ escada, alturaTela: 1964, capacidades: forte })), 2160);
 });
 
-test("computador que já sofreu: leve daí em diante", () => {
-  assert.equal(escolherVersao({ ...maquina, lembrarLeve: true }), "leve");
+test("sem confirmação do navegador, nunca começa acima de 1080p (o caso dos 71%)", () => {
+  assert.equal(alturaDe(escolherDegrau({ escada, alturaTela: 1964 })), 1080);
+  assert.equal(alturaDe(escolherDegrau({ escada, alturaTela: 1964, capacidades: { 2160: { suave: true } } })), 1080);
 });
 
-test("a escolha do jogador manda", () => {
-  assert.equal(escolherVersao({ ...maquina, preferencia: "leve" }), "leve");
-  assert.equal(escolherVersao({ ...maquina, suave: false, preferencia: "original" }), "original");
+test("ecrã de 1080p: não passa de 1080p, o 4K seria peso invisível", () => {
+  assert.equal(alturaDe(escolherDegrau({ escada, alturaTela: 1080 })), 1080);
+  assert.equal(alturaDe(escolherDegrau({ escada, alturaTela: 768 })), 720);    // 720 ≥ 90% de 768
 });
 
-test("capacidade desconhecida não rebaixa ninguém", () => {
-  assert.equal(escolherVersao({ ...maquina, suave: undefined, eficiente: undefined }), "original");
+test("desce só o necessário para a máquina tocar com fluidez", () => {
+  const capacidades = { 2160: { suave: false }, 1080: { eficiente: false }, 720: { suave: true, eficiente: true } };
+  assert.equal(alturaDe(escolherDegrau({ escada, alturaTela: 1964, capacidades })), 720);
+});
+
+test("respeita o teto que este computador já mostrou aguentar", () => {
+  assert.equal(alturaDe(escolherDegrau({ escada, alturaTela: 1964, capacidades: forte, teto: 720 })), 720);
+});
+
+test("nada toca bem: fica com a mais leve", () => {
+  const capacidades = Object.fromEntries(escada.map(d => [d.altura, { suave: false }]));
+  assert.equal(alturaDe(escolherDegrau({ escada, capacidades })), 480);
+});
+
+// amostras acumuladas por segundo, como o getVideoPlaybackQuality devolve
+const acumular = (porSegundo) => porSegundo.reduce((acc, [q, p]) => {
+  const ant = acc.at(-1) ?? { total: 0, perdidos: 0 };
+  return [...acc, { total: ant.total + q, perdidos: ant.perdidos + p }];
+}, [{ total: 0, perdidos: 0 }]);
+
+test("desce quando perde mais de 20% dos quadros por 3 s seguidos (o caso dos 71%)", () => {
+  assert.equal(deveDescer(acumular([[30, 21], [30, 22], [30, 20]])), true);
+});
+
+test("um pico isolado não faz descer", () => {
+  assert.equal(deveDescer(acumular([[30, 25], [30, 1], [30, 25]])), false);
+});
+
+test("vídeo parado ou aba oculta (quase nenhum quadro) não decide nada", () => {
+  assert.equal(deveDescer(acumular([[2, 2], [1, 1], [3, 3]])), false);
+});
+
+test("sem amostras suficientes ainda não decide", () => {
+  assert.equal(deveDescer(acumular([[30, 25], [30, 25]])), false);
 });

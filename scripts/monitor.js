@@ -58,9 +58,11 @@ export class Monitor extends HandlebarsApplicationMixin(ApplicationV2) {
     const ids = { exibicaoId, itemId: item.id, userId: game.user.id };
     abaixarMusica();
     if (game.settings.get(MODULE_ID, "aliviarCanvasMestre")) aliviarCanvas(30);
-    const { src } = await srcParaEste(item);
+    const escolha = await srcParaEste(item);
     this.#reprodutor = await Reprodutor.criar({
-      src,
+      src: escolha.src,
+      escada: escolha.escada,
+      degrau: escolha.degrau,
       palco: this.element.querySelector(".cinema-monitor-palco"),
       volume: game.settings.get(MODULE_ID, "volume") * (item.volume ?? 1),
       onRelato: (r) => enviar(MSG.STATUS, { ...ids, phase: PHASE.PLAYING, ...r }, { local: true }),

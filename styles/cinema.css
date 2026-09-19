@@ -12,6 +12,8 @@
   transition: opacity .6s ease .6s;      /* ao sair: o filme apaga primeiro, depois o preto */
 }
 #cinema-sync-overlay .cinema-palco { width: 100%; height: 100%; display: grid; place-items: center; }
+/* durante a troca de versão há dois vídeos: ficam empilhados na mesma célula */
+.cinema-palco > video, .cinema-monitor-palco > video { grid-area: 1 / 1; }
 
 /* controles de player de vídeo: só com o rato em movimento */
 #cinema-sync-overlay.cinema-mexeu { cursor: default; }
@@ -222,3 +224,7 @@ body.cinema-ativo > *:not(#cinema-sync-overlay) { visibility: hidden !important;
 .cinema-falhou { color: #e0383e; }
 .cinema-erro-linha { margin: 0; font-size: .74rem; color: #ffb4b0; }
 .cinema-ajuda { margin: 0 0 .3rem; font-size: .75rem; opacity: .7; }
+
+/* em que degrau cada jogador vai arrancar */
+.cinema-plano { display: flex; flex-wrap: wrap; gap: .45rem; font-size: .68rem; opacity: .8; font-variant-numeric: tabular-nums; }
+.cinema-plano > span { display: inline-flex; align-items: center; gap: .2rem; }

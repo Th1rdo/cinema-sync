@@ -75,27 +75,78 @@ export function quemAguardar(audiencia, inventario, relatos, itemId) {
   });
 }
 
+/** Nome do ficheiro de uma versão: "Cena.mp4" → "Cena-720p.mp4" (preserva a query). */
+export function nomeDaVersao(src, altura) {
+  return src.replace(/(\.[^./?]+)(\?.*)?$/, `-${altura}p$1$2`);
+}
+
 /**
- * Que versão da cutscene este computador toca.
+ * A escada de versões de uma cutscene, da mais pesada para a mais leve.
+ * O original é o primeiro degrau. `srcLeve` (0.8) continua a valer como degrau.
+ */
+export function escadaDoItem(item) {
+  const degraus = [{ src: item.src, altura: item.altura ?? 99999, original: true }];
+  for (const v of item.versoes ?? []) degraus.push({ src: v.src, altura: v.altura });
+  if (item.srcLeve && !degraus.some(d => d.src === item.srcLeve)) {
+    degraus.push({ src: item.srcLeve, altura: item.alturaLeve ?? 1080 });
+  }
+  return degraus.sort((a, b) => b.altura - a.altura);
+}
+
+/**
+ * Que degrau este computador toca no arranque. Ninguém escolhe: é calculado.
  *
- * A regra é nunca perder qualidade visível: o original vai para quem o
- * consegue tocar com fluidez E tem ecrã para o mostrar. A versão leve vai
- * para quem sofreria com o original, ou para quem nem veria a diferença.
+ * - nunca acima do que o ecrã mostra (acima disso é peso invisível);
+ * - nunca acima do que este computador já mostrou não aguentar;
+ * - acima de 1080p, só com o navegador a CONFIRMAR que toca com fluidez e por
+ *   hardware. Sem confirmação, fica em 1080p — que em quase todos os ecrãs é
+ *   igual à vista. (O primeiro teste real foi um 4K "não recusado" que perdeu
+ *   71% dos quadros.)
+ * - até 1080p basta o navegador não dizer que engasga.
  *
  * @param {object} o
- * @param {boolean} o.temLeve       a cutscene tem versão leve?
- * @param {"auto"|"leve"|"original"} o.preferencia   escolha do jogador
- * @param {boolean} o.lembrarLeve   este computador já perdeu muitos quadros antes
- * @param {boolean|undefined} o.suave      o navegador diz que decodifica o original sem engasgar
- * @param {boolean|undefined} o.eficiente  …e com hardware (não CPU)
- * @param {number} o.alturaTela     pixels físicos do ecrã
- * @param {number} [o.alturaLeve]   altura da versão leve
+ * @param {{src: string, altura: number}[]} o.escada   da mais pesada para a mais leve
+ * @param {number} [o.teto]          altura máxima que este computador já mostrou aguentar
+ * @param {number} [o.alturaTela]    pixels físicos do ecrã
+ * @param {Record<number, {suave?: boolean, eficiente?: boolean}>} [o.capacidades]  por altura
+ * @returns {number} índice do degrau
  */
-export function escolherVersao({ temLeve, preferencia = "auto", lembrarLeve = false, suave, eficiente, alturaTela, alturaLeve = 1080 }) {
-  if (!temLeve) return "original";
-  if (preferencia === "leve" || preferencia === "original") return preferencia;
-  if (lembrarLeve) return "leve";
-  if (suave === false || eficiente === false) return "leve";
-  if (alturaTela && alturaTela <= alturaLeve * 1.1) return "leve";      // o 4K seria peso invisível
-  return "original";
+export function escolherDegrau({ escada, teto, alturaTela, capacidades = {} }) {
+  const ultimo = escada.length - 1;
+  if (ultimo <= 0) return 0;
+
+  let topo = 0;
+  if (alturaTela) {
+    for (let i = ultimo; i >= 0; i--) if (escada[i].altura >= alturaTela * 0.9) { topo = i; break; }
+  }
+
+  for (let i = topo; i <= ultimo; i++) {
+    const { altura } = escada[i];
+    if (teto && altura > teto) continue;
+    const c = capacidades[altura] ?? {};
+    const confirmado = c.suave === true && c.eficiente === true;
+    const recusado = c.suave === false || c.eficiente === false;
+    if (altura > 1080 ? !confirmado : recusado) continue;
+    return i;
+  }
+  return ultimo;
+}
+
+/**
+ * Descer um degrau a meio da cena?
+ *
+ * `amostras` são leituras acumuladas de getVideoPlaybackQuality(), uma por
+ * segundo. Desce se nos últimos `segundos` TODOS os intervalos perderam mais
+ * de `limiar` dos quadros — um pico isolado (alt-tab, notificação) não conta.
+ */
+export function deveDescer(amostras, { limiar = 0.2, segundos = 3, minimoQuadros = 10 } = {}) {
+  if (amostras.length < segundos + 1) return false;
+  const recentes = amostras.slice(-(segundos + 1));
+  for (let i = 1; i < recentes.length; i++) {
+    const quadros = recentes[i].total - recentes[i - 1].total;
+    const perdidos = recentes[i].perdidos - recentes[i - 1].perdidos;
+    if (quadros < minimoQuadros) return false;          // vídeo parado ou aba oculta: não decide
+    if (perdidos / quadros < limiar) return false;
+  }
+  return true;
 }

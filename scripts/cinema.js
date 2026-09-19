@@ -2,7 +2,7 @@ import { MODULE_ID, MSG, PHASE, SYNC, log } from "./const.js";
 import { enviar, ao } from "./net.js";
 import { serverNow } from "./clock.js";
 import * as bib from "./biblioteca.js";
-import { resolverAudiencia, quemFalta, quemAguardar, coberturaDoCache, pesoDoVideo, mmss } from "./logica.js";
+import { resolverAudiencia, quemFalta, quemAguardar, coberturaDoCache, pesoDoVideo, mmss, escadaDoItem } from "./logica.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
 
@@ -33,6 +33,8 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
   // ------------------------------------------------------------------ estado do mestre
   /** userId → Set(itemId) do que cada cliente já tem em disco */
   static inventario = new Map();
+  /** itemId → Map(userId → "720p") — o degrau em que cada jogador vai começar */
+  static planos = new Map();
   /** itemId → Map(userId → mensagem de erro) do último download que falhou */
   static falhas = new Map();
   /** userId → está em tela cheia agora? */
@@ -52,6 +54,8 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
   static abrir() {
     Cinema.#instancia ??= new Cinema();
     Cinema.#instancia.render({ force: true });
+    // versões carregadas no Forge depois de adicionar a cutscene: encontradas sozinhas
+    bib.atualizarVersoes().then(mudou => mudou && Cinema.atualizar());
     return Cinema.#instancia;
   }
 
@@ -82,7 +86,13 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
         cache,
         audiencia,
         pedirTelaCheia: item.pedirTelaCheia ?? true,
-        temLeve: !!item.srcLeve,
+        escada: escadaDoItem(item).length > 1
+          ? escadaDoItem(item).map(d => d.original ? (pesoDoVideo(item).rotulo ?? "original") : `${d.altura}p`).join(" · ")
+          : null,
+        // quem arranca em que degrau: cada computador escolhe e conta ao mestre
+        plano: [...(Cinema.planos.get(item.id) ?? new Map())]
+          .filter(([uid]) => game.users.get(uid)?.active && !game.users.get(uid)?.isGM)
+          .map(([uid, v]) => ({ nome: game.users.get(uid).name, cor: game.users.get(uid).color?.css ?? "#999", versao: v })),
         falhas: [...(Cinema.falhas.get(item.id) ?? new Map())]
           .map(([uid, erro]) => `${game.users.get(uid)?.name ?? "?"}: ${erro}`).join("\n"),
         emCartaz: ex?.itemId === item.id
@@ -114,7 +124,7 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
             engasgando: (r.perdidos ?? 0) >= 10,
             perdidos: r.perdidos ?? 0,
             fluidez: !!r.fluidez,
-            leve: r.versao === "leve",
+            versao: r.original === false ? r.versao : null,
             erro: r.phase === PHASE.FAILED ? r.erro : null,
             desvio: r.desvio
           };
@@ -292,26 +302,11 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
         <label class="cinema-linha"><input type="checkbox" name="pedirTelaCheia" ${(item.pedirTelaCheia ?? true) ? "checked" : ""}> ${game.i18n.localize("CINEMA.PedirTelaCheia")}</label>
         <label>${game.i18n.localize("CINEMA.Volume")} <input type="range" name="volume" min="0" max="1" step="0.05" value="${item.volume ?? 1}"></label>
         <fieldset>
-          <legend>${game.i18n.localize("CINEMA.VersaoLeve")}</legend>
-          <p class="cinema-ajuda">${game.i18n.localize("CINEMA.VersaoLeveHint")}</p>
-          <div class="cinema-linha">
-            <input type="text" name="srcLeve" value="${item.srcLeve ?? ""}" placeholder="${game.i18n.localize("CINEMA.VersaoLeveVazia")}">
-            <button type="button" data-escolher-leve><i class="fa-solid fa-folder-open"></i></button>
-          </div>
+          <legend>${game.i18n.localize("CINEMA.Versoes")}</legend>
+          <p class="cinema-ajuda">${game.i18n.localize("CINEMA.VersoesHint")}</p>
+          <p class="cinema-versoes-lista">${listaDeVersoes(item)}</p>
         </fieldset>
       </div>`;
-
-    // o botão de pasta abre o seletor de ficheiros e preenche o campo. Escuta por
-    // delegação, só enquanto o diálogo está aberto: não depende da API do DialogV2
-    const aoEscolherLeve = (ev) => {
-      const botao = ev.target.closest?.("[data-escolher-leve]");
-      if (!botao) return;
-      const campo = botao.closest(".cinema-editar")?.querySelector('[name="srcLeve"]');
-      if (!campo) return;
-      const FP = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
-      new FP({ type: "video", current: campo.value, callback: (c) => { campo.value = c; } }).render(true);
-    };
-    document.addEventListener("click", aoEscolherLeve, true);
 
     const resultado = await DialogV2.wait({
       window: { title: game.i18n.format("CINEMA.Editar", { nome: item.nome }) },
@@ -326,7 +321,6 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
               audiencia: f.querySelector('[name="todos"]').checked ? null : marcados,
               preCarregar: f.querySelector('[name="preCarregar"]').checked,
               pedirTelaCheia: f.querySelector('[name="pedirTelaCheia"]').checked,
-              srcLeve: f.querySelector('[name="srcLeve"]').value.trim() || null,
               volume: Number(f.querySelector('[name="volume"]').value)
             };
           } },
@@ -334,7 +328,7 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
         { action: "cancelar", label: game.i18n.localize("Cancel") }
       ],
       rejectClose: false
-    }).finally(() => document.removeEventListener("click", aoEscolherLeve, true));
+    });
 
     if (resultado === "remover") {
       const ok = await DialogV2.confirm({
@@ -343,10 +337,6 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
       });
       if (ok) await bib.remover(item.id);
     } else if (resultado && typeof resultado === "object") {
-      // versão leve nova: guarda a altura dela (a decisão compara com o ecrã)
-      if (resultado.srcLeve && resultado.srcLeve !== item.srcLeve) {
-        resultado.alturaLeve = (await bib.lerMetadados(resultado.srcLeve)).altura ?? 1080;
-      }
       await bib.atualizar(item.id, resultado);
     }
     Cinema.atualizar();
@@ -354,6 +344,13 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static #comecarJa() { Cinema.largar(); }
   static #encerrar() { Cinema.parar(); }
+}
+
+/** "4K · 1080p · 720p · 480p", ou o aviso de que só há o original. */
+function listaDeVersoes(item) {
+  const escada = escadaDoItem(item);
+  if (escada.length < 2) return game.i18n.localize("CINEMA.SoOriginal");
+  return escada.map(d => d.original ? (pesoDoVideo(item).rotulo ?? "original") : `${d.altura}p`).join(" · ");
 }
 
 // ------------------------------------------------------------------ o que o mestre escuta
@@ -377,6 +374,12 @@ export function ouvirComoMestre() {
       if (!Cinema.inventario.has(m.userId)) Cinema.inventario.set(m.userId, new Set());
       Cinema.inventario.get(m.userId).add(m.itemId);
       Cinema.falhas.get(m.itemId)?.delete(m.userId);
+    }
+    // o degrau em que este jogador vai arrancar (a versão original conta como "original")
+    if (m.itemId && m.versao && (m.phase === PHASE.READY || m.phase === PHASE.LOADING)) {
+      if (!Cinema.planos.has(m.itemId)) Cinema.planos.set(m.itemId, new Map());
+      const item = bib.obter(m.itemId);
+      Cinema.planos.get(m.itemId).set(m.userId, m.original ? (pesoDoVideo(item ?? {}).rotulo ?? "original") : m.versao);
     }
     // falha de download aparece no card, mesmo fora de uma exibição
     if ((m.phase === PHASE.FAILED || m.phase === PHASE.NOCODEC) && m.itemId) {

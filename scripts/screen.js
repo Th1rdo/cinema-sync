@@ -3,7 +3,7 @@ import { enviar } from "./net.js";
 import { Reprodutor } from "./player.js";
 import { abaixarMusica, restaurarMusica, congelarCanvas, descongelarCanvas } from "./ambiente.js";
 import { estaEmTelaCheia } from "./telacheia.js";
-import { srcParaEste, lembrarQueSofreu } from "./biblioteca.js";
+import { srcParaEste, lembrarTeto } from "./biblioteca.js";
 
 /**
  * A tela do jogador: preto, o filme, a mesa de volta.
@@ -36,24 +36,29 @@ class TelaDeCinema {
     this.#telaCheiaPermitida = item.pedirTelaCheia ?? true;
     root.querySelector(".cinema-btn-telacheia").hidden = !this.#telaCheiaPermitida;
 
-    const { src, versao } = await srcParaEste(item);
-    if (this.#exibicao) this.#exibicao.versao = versao;     // pode ter sido encerrada durante a espera
-    let perdidos = 0;
+    const escolha = await srcParaEste(item);
+    // a exibição pode ter sido encerrada durante a espera
+    if (this.#exibicao) Object.assign(this.#exibicao, { versao: `${escolha.altura}p`, original: !!escolha.original });
 
     const volume = game.settings.get(MODULE_ID, "volume") * (item.volume ?? 1);
     this.#reprodutor = await Reprodutor.criar({
-      src,
+      src: escolha.src,
+      escada: escolha.escada,
+      degrau: escolha.degrau,
       palco: root.querySelector(".cinema-palco"),
       volume,
       mudo: !!game.audio?.locked,
       onRelato: (r) => {
         if (r.mudo) root.querySelector(".cinema-som").hidden = false;
-        if (r.perdidos !== undefined) perdidos = r.perdidos;
         this.#reportar(PHASE.PLAYING, r);
       },
+      // desceu a meio da cena: este computador não aguenta acima disto, e as
+      // próximas cenas já começam no degrau certo
+      onTroca: (degrau) => {
+        lembrarTeto(degrau.altura);
+        if (this.#exibicao) Object.assign(this.#exibicao, { versao: `${degrau.altura}p`, original: false });
+      },
       onFim: () => {
-        // o original pesou demais aqui: as próximas cenas usam a versão leve
-        if (versao === "original" && perdidos >= 25) lembrarQueSofreu();
         this.#reportar(PHASE.ENDED);
         if (game.settings.get(MODULE_ID, "fecharNoFim")) this.encerrar();
       }

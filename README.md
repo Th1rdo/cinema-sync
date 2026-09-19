@@ -29,7 +29,7 @@ Em cada card:
 | ▶ | exibe para a audiência padrão |
 | 👤✓ | escolhe na hora quem vê (flashback de um personagem só) |
 | ⬇ | baixa agora para a audiência |
-| ⚙ | nome, quem assiste, pré-carregar ao entrar, botão de tela cheia, volume, versão leve, remover |
+| ⚙ | nome, quem assiste, pré-carregar ao entrar, botão de tela cheia, volume, versões, remover |
 
 O card mostra quantos jogadores já têm o vídeo em disco (`4/5`) e avisa quando o vídeo é 4K.
 
@@ -63,24 +63,38 @@ Para quem quer o ecrã inteiro sempre: abrir o Foundry como app no Chrome (⋮ �
 e partilhar* → *Instalar página como app*) ou no Edge (⋯ → *Apps* → *Instalar este site como app*).
 Janela sem abas nem barra de endereço, que se comporta como qualquer programa no alt-tab.
 
-## Versão leve — para quem não aguenta o 4K
+## Versões — cada jogador recebe o que o computador dele aguenta
 
-Cada cutscene pode ter uma **versão leve** (o mesmo vídeo em 1080p), no ⚙. Com ela, cada computador
-escolhe sozinho:
+Como na Netflix, cada cutscene pode ter uma **escada de versões**: o original (por exemplo 4K), 1080p,
+720p e 480p. Nunca se perde qualidade visível — cada computador sobe até ao que o ecrã mostra e só
+desce o necessário para tocar com fluidez.
 
-- **o original**, se o navegador diz que o toca com fluidez e por hardware, e o ecrã mostra mais que 1080p;
-- **a leve**, se sofreria com o original — ou se o ecrã é de 1080p e nem veria a diferença.
+**No arranque**, o computador de cada jogador calcula sozinho a versão certa — ninguém escolhe nada:
 
-Um computador que perde mais de 25% dos quadros no original passa a usar a leve nas cenas seguintes.
-Cada jogador também pode forçar nas configurações (*Qualidade das cutscenes*). O painel mostra quem
-está a ver a leve.
+- nunca acima do que o **ecrã** mostra (num ecrã de 1080p, o 4K seria peso invisível);
+- nada acima do que esse computador **já mostrou não aguentar** numa cena anterior;
+- **acima de 1080p, só com o navegador a confirmar** que toca com fluidez e por hardware
+  (`mediaCapabilities`); sem confirmação, fica em 1080p.
 
-Para fazer a versão leve:
+O card mostra em que degrau cada jogador vai começar, antes de carregares no ▶.
+
+**A meio da cena**, se um computador perder mais de 20% dos quadros durante 3 segundos seguidos, desce
+um degrau: a versão de baixo é preparada por baixo, invisível, já no ponto certo, e as duas cruzam em
+300 ms. O áudio de todas as versões é o mesmo (copiado, não recodificado), então a troca não se ouve.
+Só desce, nunca sobe, e o degrau de baixo é descarregado em segundo plano para a troca ser instantânea.
+
+### Gerar as versões
+
+Com o ffmpeg instalado (`brew install ffmpeg`):
 
 ```bash
-ffmpeg -i original.mp4 -c:v libx264 -preset slow -crf 20 -vf "scale=-2:1080" -r 30 \
-       -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart leve.mp4
+bash ferramentas/versoes.sh "caminho/Cena.mp4"
 ```
+
+Cria `Cena-1080p.mp4`, `Cena-720p.mp4` e `Cena-480p.mp4` numa pasta ao lado. **Carregue-as para a mesma
+pasta do original no Forge** — o módulo encontra-as sozinho pelo nome, ao adicionar a cutscene ou,
+se as carregares depois, na próxima vez que abrires a janela Cinema. Um 4K de 80 s e 194 MB fica com 31 MB em 1080p, 16 MB em 720p
+e 9 MB em 480p.
 
 ## Quando a máquina ou a rede não aguentam
 
@@ -89,7 +103,9 @@ ffmpeg -i original.mp4 -c:v libx264 -preset slow -crf 20 -vf "scale=-2:1080" -r 
 - **Quem falha o download não atrasa a mesa**: vê a cena pela rede, e o card mostra ⚠ com o nome e o
   erro — também fora de uma exibição.
 - **Quem encrava repetidamente passa a priorizar fluidez**: depois de dois saltos de sincronia em 20 s,
-  deixa de ser forçado a saltar e vê a cena contínua, um pouco atrasado, em vez de aos solavancos.
+  deixa de ser forçado a saltar, vê a cena contínua, um pouco atrasado, e desce um degrau.
+- **Pausa que não foi do módulo é desfeita**: o Chrome pausa sozinho vídeos mudos em abas ocultas;
+  quando o jogador volta do alt-tab, a cena retoma no ponto onde a mesa está.
 
 ## O que o mestre vê
 
@@ -137,7 +153,6 @@ Um 4K de 80 s e 194 MB vira algo perto de 40 MB.
 | Opção | Escopo | Padrão |
 |---|---|---|
 | Volume das cutscenes | por computador | 0.8 |
-| Qualidade das cutscenes (automático · sempre leve · sempre original) | por computador | automático |
 | O mestre assiste numa janela | mundo | sim |
 | Silenciar a música durante a cutscene | mundo | sim |
 | Aliviar o canvas do mestre durante a cena | por computador | não |
