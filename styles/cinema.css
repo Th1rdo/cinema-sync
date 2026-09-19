@@ -169,37 +169,6 @@ body.cinema-ativo { overflow: hidden; }
 .cinema-monitor:hover .cinema-monitor-parar { opacity: 1; }
 
 /* ============================================================ tela cheia */
-/* o ⛶ no preto antes da cena: só uma sugestão, clicar em qualquer lugar vale */
-#cinema-sync-overlay .cinema-convite-cena {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  color: #fff; font-size: 2.2rem; opacity: 0; pointer-events: none;
-  animation: cinema-surge 1.2s ease .3s forwards;
-  transition: opacity .6s ease;
-}
-#cinema-sync-overlay .cinema-convite-cena.cinema-some { opacity: 0 !important; animation: none; }
-@keyframes cinema-surge { to { opacity: .45; } }
-
-/* convite de sessão: discreto, no topo, some sozinho */
-#cinema-convite {
-  position: fixed; top: 4.5rem; left: 50%; transform: translateX(-50%);
-  z-index: 2147482000;
-  display: flex; align-items: center; gap: .85rem;
-  padding: .7rem .9rem; max-width: min(92vw, 560px);
-  background: #121216f2; color: #eee;
-  border: 1px solid #ffffff22; border-radius: 8px;
-  box-shadow: 0 8px 30px #0008;
-  animation: cinema-convite-entra .35s ease;
-  transition: opacity .35s ease, transform .35s ease;
-}
-#cinema-convite > i { font-size: 1.4rem; opacity: .8; }
-#cinema-convite .cinema-convite-texto { display: flex; flex-direction: column; gap: .1rem; }
-#cinema-convite .cinema-convite-texto small { opacity: .65; font-size: .75rem; }
-#cinema-convite .cinema-convite-botoes { display: flex; gap: .3rem; margin-left: .3rem; }
-#cinema-convite button { width: auto; white-space: nowrap; font-size: .8rem; line-height: 1.8; padding: 0 .6rem; }
-#cinema-convite button[data-acao="entrar"] { background: #b1161a; color: #fff; border-color: #e0383e; }
-#cinema-convite.cinema-convite-saindo { opacity: 0; transform: translate(-50%, -8px); }
-@keyframes cinema-convite-entra { from { opacity: 0; transform: translate(-50%, -8px); } }
-
 /* quem está na mesa, e quem já está em tela cheia */
 .cinema-presentes { display: flex; flex-wrap: wrap; gap: .3rem; padding: .55rem .75rem 0; }
 .cinema-presente {

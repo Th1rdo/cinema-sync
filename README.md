@@ -29,7 +29,7 @@ Em cada card:
 | ▶ | exibe para a audiência padrão |
 | 👤✓ | escolhe na hora quem vê (flashback de um personagem só) |
 | ⬇ | baixa agora para a audiência |
-| ⚙ | nome, quem assiste por padrão, pré-carregar ao entrar, pedir tela cheia, volume, remover |
+| ⚙ | nome, quem assiste por padrão, pré-carregar ao entrar, tela cheia ao clicar, volume, remover |
 
 O card mostra quantos jogadores já têm o vídeo em disco (`4/5`) e avisa quando o vídeo é 4K.
 
@@ -53,27 +53,28 @@ Enquanto a cena passa, nos jogadores: o **canvas do Foundry sai do ar** (1 fps, 
 
 ## Tela cheia
 
-Os navegadores só entram em tela cheia em resposta a um clique da própria pessoa, feito nos
-últimos segundos. É regra de segurança: nenhum módulo contorna. Então o clique precisa acontecer
-num momento que não custe imersão.
+Nada aparece na tela a pedir tela cheia. A cena vai para o ecrã inteiro quando o jogador:
 
-**No começo da sessão.** Quando o jogador entra num mundo que tem cutscenes, aparece um convite
-discreto no topo:
+- **clica durante a cutscene** — no preto ou já com o filme a correr, ou
+- **tinha acabado de clicar quando ela começou** (moveu um token, abriu uma ficha): entra sozinho,
+  sem mostrar nada.
 
-- **Entrar** — tela cheia agora, para esta sessão.
-- **Sempre** — entra agora e, nas próximas sessões, sozinho no primeiro clique do jogador.
-- **Agora não** — pergunta de novo na próxima sessão.
+A tela cheia é só da cena e é desfeita no fim — o alt-tab depois fica intocado. Quem não clicar vê
+a cena a encher a janela do navegador.
 
-Quem aceita tem **todas as cutscenes em tela cheia, sem prompt nenhum**. F11 (ou ⌃⌘F no Mac)
-também vale, e é detectado.
+Por que não dá para mandar todos para tela cheia quando o mestre carrega no ▶: o navegador tem
+dois tipos de "o jogador já clicou". *Clicou alguma vez na sessão* vale a sessão inteira e é o que
+libera o som. *Clicou há poucos segundos* expira depressa e é o que a tela cheia exige — porque um
+site em tela cheia consegue desenhar um ecrã falso (um login, um banco) sem a barra do navegador
+para denunciar. Nenhum módulo contorna isto.
 
-**Na cena, como rede de segurança.** Cada cutscene tem a opção *Pedir tela cheia a quem não
-estiver*. Ligada, quem ainda está na janela do navegador vê um ⛶ discreto no preto antes do
-filme. Clicar em qualquer lugar entra em tela cheia, e ela é desfeita no fim da cena. Quem já
-estava em tela cheia não vê nada.
+**Para quem quer o ecrã inteiro sempre, sem clicar:** abrir o Foundry como app. No Chrome, menu ⋮ →
+*Transmitir, guardar e partilhar* → *Instalar página como app* (no Edge: ⋯ → *Apps* → *Instalar
+este site como app*). Fica uma janela sem abas nem barra de endereço, que se comporta como qualquer
+programa no alt-tab — e a cutscene enche essa janela inteira.
 
-Na janela Cinema, o mestre vê um ⛶ verde ao lado de cada jogador que já está em tela cheia —
-sabe antes de dar play quem vai ver a cena no monitor inteiro.
+No ⚙ de cada cutscene, *Tela cheia quando o jogador clica na cena* permite desligar a tela cheia
+naquela cena. Na janela Cinema, o mestre vê um ⛶ verde em quem já está a ver no ecrã inteiro.
 
 ## O que o mestre vê
 
@@ -108,7 +109,6 @@ Um 4K de 80 s e 194 MB vira algo perto de 40 MB.
 | Opção | Escopo | Padrão |
 |---|---|---|
 | Volume das cutscenes | por computador | 0.8 |
-| Tela cheia (convidar · sozinho no primeiro clique · nunca) | por computador | convidar |
 | O mestre assiste numa janela | mundo | sim |
 | Silenciar a música durante a cutscene | mundo | sim |
 | Fechar ao terminar | mundo | sim |

@@ -54,18 +54,7 @@
   "CINEMA.Config.FecharNoFim": "Close when finished",
   "CINEMA.Config.FecharNoFimHint": "Returns to the table automatically when the video ends.",
   "CINEMA.EncerrarTodos": "Stop the scene for everyone",
-  "CINEMA.Convite.Titulo": "Play in fullscreen?",
-  "CINEMA.Convite.Texto": "This table's cutscenes look best on the whole monitor.",
-  "CINEMA.Convite.Entrar": "Enter",
-  "CINEMA.Convite.Sempre": "Always",
-  "CINEMA.Convite.SempreHint": "Enters now and, in future sessions, automatically on your first click",
-  "CINEMA.Convite.AgoraNao": "Not now",
-  "CINEMA.PedirTelaCheia": "Ask for fullscreen if not already",
+  "CINEMA.PedirTelaCheia": "Fullscreen when the player clicks the scene",
   "CINEMA.EmTelaCheia": "In fullscreen",
-  "CINEMA.NaoEmTelaCheia": "In the browser window",
-  "CINEMA.Config.TelaCheia": "Fullscreen",
-  "CINEMA.Config.TelaCheiaHint": "How this computer goes fullscreen for cutscenes.",
-  "CINEMA.Config.TelaCheiaConvidar": "Invite when joining the world",
-  "CINEMA.Config.TelaCheiaAutomatico": "Enter automatically on the session's first click",
-  "CINEMA.Config.TelaCheiaNunca": "Never"
+  "CINEMA.NaoEmTelaCheia": "In the browser window"
 }
