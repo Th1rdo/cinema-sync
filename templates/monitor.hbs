@@ -1,4 +1,7 @@
-<div class="cinema-monitor-palco"></div>
-<button type="button" class="cinema-monitor-parar" data-action="encerrarTodos" title="{{localize 'CINEMA.EncerrarTodos'}}">
-  <i class="fa-solid fa-stop"></i> {{localize "CINEMA.Encerrar"}}
-</button>
+{{! ApplicationV2 exige UMA raiz por parte: palco e botão vivem dentro dela }}
+<div class="cinema-monitor-corpo">
+  <div class="cinema-monitor-palco"></div>
+  <button type="button" class="cinema-monitor-parar" data-action="encerrarTodos" title="{{localize 'CINEMA.EncerrarTodos'}}">
+    <i class="fa-solid fa-stop"></i> {{localize "CINEMA.Encerrar"}}
+  </button>
+</div>

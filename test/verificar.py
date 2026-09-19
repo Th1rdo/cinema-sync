@@ -27,6 +27,37 @@ for t, src in templates.items():
     for asset in re.findall(r'modules/cinema-sync/(assets/[\w.-]+)', src):
         if not os.path.exists(asset): falhas.append(f"{t} usa {asset}, inexistente")
 
+# ApplicationV2: cada parte tem de renderizar UM só elemento na raiz.
+# (O monitor tinha palco + botão soltos: a janela nunca renderizava, e o mestre
+#  ficava sem ver a cutscene enquanto os jogadores viam tudo bem.)
+from html.parser import HTMLParser
+VAZIOS = {"area","base","br","col","embed","hr","img","input","link","meta","param","source","track","wbr"}
+
+class Raizes(HTMLParser):
+    def __init__(self):
+        super().__init__(); self.profundidade = 0; self.raizes = 0
+    def handle_starttag(self, tag, attrs):
+        if self.profundidade == 0: self.raizes += 1
+        if tag not in VAZIOS: self.profundidade += 1
+    def handle_startendtag(self, tag, attrs):
+        if self.profundidade == 0: self.raizes += 1
+    def handle_endtag(self, tag):
+        if tag not in VAZIOS: self.profundidade = max(0, self.profundidade - 1)
+    def handle_data(self, texto):
+        if self.profundidade == 0 and texto.strip(): self.raizes += 1
+
+def raizes_de(src):
+    limpo = re.sub(r"\{\{![\s\S]*?\}\}", "", src)          # comentários handlebars
+    limpo = re.sub(r"\{\{[^}]*\}\}", "", limpo)             # expressões e blocos
+    p = Raizes(); p.feed(limpo); return p.raizes
+
+partes = set()
+for src in scripts.values():
+    partes |= {t.split("/")[-1] for t in re.findall(r'template: `modules/[^/]+/(templates/[^`]+)`', src)}
+for t in sorted(partes):
+    n = raizes_de(templates[t])
+    if n != 1: falhas.append(f"{t} renderiza {n} elementos na raiz; o ApplicationV2 exige 1")
+
 # data-action dos templates × actions registradas nos apps
 acoes_tpl = {a for src in templates.values() for a in re.findall(r'data-action="(\w+)"', src)}
 acoes_js = set()
