@@ -103,7 +103,10 @@ e 9 MB em 480p.
 - **Quem falha o download não atrasa a mesa**: vê a cena pela rede, e o card mostra ⚠ com o nome e o
   erro — também fora de uma exibição.
 - **Quem encrava repetidamente passa a priorizar fluidez**: depois de dois saltos de sincronia em 20 s,
-  deixa de ser forçado a saltar, vê a cena contínua, um pouco atrasado, e desce um degrau.
+  deixa de ser forçado a saltar, vê a cena contínua, um pouco atrasado, e desce um degrau. No degrau
+  novo a sincronia volta a ser tentada.
+- **Durante a cena os downloads param** entre bocados: quem começou a ver antes de acabar de baixar fica
+  com a banda toda. Retomam quando o vídeo acaba. O mesmo ficheiro nunca é baixado duas vezes em paralelo.
 - **Pausa que não foi do módulo é desfeita**: o Chrome pausa sozinho vídeos mudos em abas ocultas;
   quando o jogador volta do alt-tab, a cena retoma no ponto onde a mesa está.
 

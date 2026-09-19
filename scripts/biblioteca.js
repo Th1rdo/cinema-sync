@@ -1,6 +1,6 @@
 import { MODULE_ID, MSG, PHASE, log, warn } from "./const.js";
 import { enviar } from "./net.js";
-import { guardar, temGuardado, esquecer, suportaCodec, urlParaTocar, soltar } from "./preload.js";
+import { guardar, temGuardado, esquecer, suportaCodec, urlParaTocar, soltar, baixando } from "./preload.js";
 import { nomeDoArquivo, nomeDaVersao, escadaDoItem, escolherDegrau } from "./logica.js";
 
 /**
@@ -44,18 +44,25 @@ export function lerMetadados(src) {
  * Procura as versões geradas pelo ferramentas/versoes.sh ao lado do original
  * ("Cena-1080p.mp4", "Cena-720p.mp4", "Cena-480p.mp4"). Um HEAD por versão:
  * funciona no Forge e em qualquer host, sem depender da API do FilePicker.
+ *
+ * @returns {Promise<{src: string, altura: number}[]|null>}  null = a rede
+ *   falhou e não dá para saber (não é o mesmo que "não há versões")
  */
 export async function detetarVersoes(src, alturaOriginal = 99999) {
   const encontradas = [];
+  let duvida = false;
   for (const altura of [1440, 1080, 720, 480]) {
     if (altura >= alturaOriginal) continue;
     const candidata = nomeDaVersao(src, altura);
     try {
       const r = await fetch(candidata, { method: "HEAD" });
       if (r.ok) encontradas.push({ src: candidata, altura });
-    } catch { /* não existe ou não é acessível */ }
+      else if (r.status >= 500) duvida = true;
+    } catch {
+      duvida = true;                               // rede caiu, ou o host não deixa ver
+    }
   }
-  return encontradas;
+  return duvida ? null : encontradas;
 }
 
 /**
@@ -65,23 +72,23 @@ export async function detetarVersoes(src, alturaOriginal = 99999) {
 const jaProcurados = new Set();
 export async function atualizarVersoes() {
   if (!game.user.isGM) return false;
-  let mudou = false;
-  const lista = [];
+  const novas = new Map();   // itemId → versões, só as que mudaram
   for (const item of itens()) {
-    if (jaProcurados.has(item.id)) { lista.push(item); continue; }
+    if (jaProcurados.has(item.id)) continue;
     jaProcurados.add(item.id);
     const versoes = await detetarVersoes(item.src, item.altura ?? 99999);
-    const antes = JSON.stringify(item.versoes ?? []);
-    if (JSON.stringify(versoes) !== antes) mudou = true;
-    lista.push({ ...item, versoes });
+    if (!versoes) { jaProcurados.delete(item.id); continue; }   // rede falhou: mantém as que tinha e tenta na próxima
+    if (JSON.stringify(versoes) !== JSON.stringify(item.versoes ?? [])) novas.set(item.id, versoes);
   }
-  if (mudou) await gravar(lista);
-  return mudou;
+  if (!novas.size) return false;
+  // relê a biblioteca: durante a procura o mestre pode ter adicionado ou editado cutscenes
+  await gravar(itens().map(i => (novas.has(i.id) ? { ...i, versoes: novas.get(i.id) } : i)));
+  return true;
 }
 
 export async function adicionar(src) {
   const meta = await lerMetadados(src);
-  const versoes = await detetarVersoes(src, meta.altura ?? 99999);
+  const versoes = (await detetarVersoes(src, meta.altura ?? 99999)) ?? [];
   const item = {
     id: foundry.utils.randomID(),
     nome: nomeDoArquivo(src),
@@ -136,11 +143,17 @@ async function gerarMiniatura(item) {
   try {
     const imagem = await new Promise((resolve, reject) => {
       const v = document.createElement("video");
+      // sem isto, um ficheiro pendurado bloqueava a fila de miniaturas para a sessão toda
+      const limite = setTimeout(() => {
+        v.removeAttribute("src"); v.load();
+        reject(new Error("demorou demais"));
+      }, 15000);
       v.muted = true;
       v.preload = "metadata";         // o navegador busca só o cabeçalho e o trecho do seek
       v.crossOrigin = "anonymous";
       v.onloadedmetadata = () => { v.currentTime = Math.min(3, (v.duration || 10) * 0.15); };
       v.onseeked = () => {
+        clearTimeout(limite);
         try {
           const c = document.createElement("canvas");
           c.width = 320; c.height = 180;
@@ -149,7 +162,7 @@ async function gerarMiniatura(item) {
         } catch (err) { reject(err); }
         finally { v.removeAttribute("src"); v.load(); }
       };
-      v.onerror = () => reject(new Error("não carregou"));
+      v.onerror = () => { clearTimeout(limite); reject(new Error("não carregou")); };
       v.src = url;
     });
     localStorage.setItem(chaveMiniatura(item.id), imagem);
@@ -243,9 +256,12 @@ export async function baixar(item) {
 
   if (!suportaCodec(src)) return reportar(PHASE.NOCODEC, { erro: "este navegador não toca este formato" });
 
+  // já a baixar (pré-carga de fundo): espera o mesmo download em vez de abrir
+  // outro, e não reinicia a barra do mestre a 0% — o primeiro já relata o progresso
+  const jaEmCurso = baixando(src);
   let ultimoPct = -1, ultimosBytes = 0;
   try {
-    reportar(PHASE.LOADING, { pct: 0 });
+    if (!jaEmCurso) reportar(PHASE.LOADING, { pct: 0 });
     await guardar(src, (pct, bytes) => {
       const passou = pct === null ? bytes - ultimosBytes >= 16e6 : pct - ultimoPct >= 0.1 || pct === 1;
       if (!passou) return;

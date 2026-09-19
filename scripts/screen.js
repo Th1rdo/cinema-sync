@@ -4,6 +4,7 @@ import { Reprodutor } from "./player.js";
 import { abaixarMusica, restaurarMusica, congelarCanvas, descongelarCanvas } from "./ambiente.js";
 import { estaEmTelaCheia } from "./telacheia.js";
 import { srcParaEste, lembrarTeto } from "./biblioteca.js";
+import { pausarDownloads, retomarDownloads } from "./preload.js";
 
 /**
  * A tela do jogador: preto, o filme, a mesa de volta.
@@ -21,11 +22,14 @@ class TelaDeCinema {
   #entrouFullscreen = false;
   #telaCheiaPermitida = true;
   #esconderControles = null;
+  #geracao = 0;              // cada iniciar/encerrar invalida o que uma cena anterior ainda tinha a meio
+  #downloadsPausados = false;
 
   get ativo() { return !!this.#root; }
 
   async iniciar({ item, startAt, exibicaoId }) {
     if (this.#root) await this.encerrar({ fade: false });
+    const minha = ++this.#geracao;
     this.#exibicao = { exibicaoId, itemId: item.id };
 
     const root = this.#montar();
@@ -37,11 +41,11 @@ class TelaDeCinema {
     root.querySelector(".cinema-btn-telacheia").hidden = !this.#telaCheiaPermitida;
 
     const escolha = await srcParaEste(item);
-    // a exibição pode ter sido encerrada durante a espera
-    if (this.#exibicao) Object.assign(this.#exibicao, { versao: `${escolha.altura}p`, original: !!escolha.original });
+    if (minha !== this.#geracao) return;                   // encerrada (ou substituída) durante a espera
+    Object.assign(this.#exibicao, { versao: `${escolha.altura}p`, original: !!escolha.original });
 
     const volume = game.settings.get(MODULE_ID, "volume") * (item.volume ?? 1);
-    this.#reprodutor = await Reprodutor.criar({
+    const reprodutor = await Reprodutor.criar({
       src: escolha.src,
       escada: escolha.escada,
       degrau: escolha.degrau,
@@ -59,11 +63,15 @@ class TelaDeCinema {
         if (this.#exibicao) Object.assign(this.#exibicao, { versao: `${degrau.altura}p`, original: false });
       },
       onFim: () => {
+        this.#soltarDownloads();             // parado no último fotograma já não precisa da banda
         this.#reportar(PHASE.ENDED);
         if (game.settings.get(MODULE_ID, "fecharNoFim")) this.encerrar();
       }
     });
-    if (!this.#root) return this.#reprodutor.destruir();   // encerrado enquanto resolvia o cache
+    if (minha !== this.#geracao) return reprodutor.destruir();   // encerrada enquanto lia o cache
+    this.#reprodutor = reprodutor;
+    pausarDownloads();                                    // a banda é da cena; os downloads retomam no fim
+    this.#downloadsPausados = true;
 
     this.#reprodutor.video.addEventListener("playing", () => clearTimeout(this.#watchdog), { once: true });
     this.#reprodutor.agendar(startAt);
@@ -127,6 +135,9 @@ class TelaDeCinema {
   /** Esc: cada jogador pode sair da própria tela; o mestre vê "saiu". */
   #aoTeclar = (ev) => {
     if (ev.key !== "Escape" || !this.#root || document.fullscreenElement) return;   // 1.º Esc: sai da tela cheia
+    // o Esc é nosso: sem isto o Foundry também o recebia e abria o menu do jogo
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
     this.#reportar(PHASE.LEFT);
     this.encerrar();
   };
@@ -135,33 +146,35 @@ class TelaDeCinema {
     clearTimeout(this.#watchdog);
     const root = this.#root;
     if (!root) return;
+
+    // Tudo o que uma próxima cena reutiliza é desfeito JÁ, antes do fade. Se o
+    // mestre trocar de cena durante estes 1,2 s, a nova já está a montar-se, e
+    // o fim da antiga não pode tocar no vídeo, nas teclas nem no estado dela.
+    const reprodutor = this.#reprodutor;
+    const tinhaTelaCheia = this.#entrouFullscreen;
+    this.#geracao++;
     this.#root = null;
-
-    // a mesa volta a ser desenhada POR BAIXO do preto antes do fade começar:
-    // quando o preto some, ela já está lá, e a música volta junto
-    const devolverMesa = () => {
-      document.body.classList.remove("cinema-ativo");
-      descongelarCanvas();
-      restaurarMusica();
-    };
-
-    if (fade) {
-      devolverMesa();
-      root.classList.add("cinema-saindo");                 // o filme apaga, depois o preto some
-      await new Promise(r => setTimeout(r, 1200));
-    }
-    this.#reprodutor?.destruir();
     this.#reprodutor = null;
-
-    if (this.#entrouFullscreen && document.fullscreenElement) await document.exitFullscreen().catch(() => {});
+    this.#exibicao = null;
     this.#entrouFullscreen = false;
-
     window.removeEventListener("keydown", this.#aoTeclar, true);
     document.removeEventListener("fullscreenchange", this.#atualizarBotao);
     clearTimeout(this.#esconderControles);
+    this.#soltarDownloads();
+
+    // a mesa volta a ser desenhada POR BAIXO do preto antes do fade começar:
+    // quando o preto some, ela já está lá, e a música volta junto
+    document.body.classList.remove("cinema-ativo");
+    descongelarCanvas();
+    restaurarMusica();
+
+    if (fade) {
+      root.classList.add("cinema-saindo");                 // o filme apaga, depois o preto some
+      await new Promise(r => setTimeout(r, 1200));
+    }
+    reprodutor?.destruir();
+    if (tinhaTelaCheia && document.fullscreenElement === root) await document.exitFullscreen().catch(() => {});
     root.remove();
-    if (!fade) devolverMesa();
-    this.#exibicao = null;
   }
 
   #montar() {
@@ -183,6 +196,12 @@ class TelaDeCinema {
     this.#root = root;
     this.#atualizarBotao();
     return root;
+  }
+
+  #soltarDownloads() {
+    if (!this.#downloadsPausados) return;
+    this.#downloadsPausados = false;
+    retomarDownloads();
   }
 
   #reportar(phase, extra = {}) {

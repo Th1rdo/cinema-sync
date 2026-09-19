@@ -111,7 +111,7 @@ Hooks.once("ready", () => {
     }
   });
 
-  ao(MSG.STOP, () => (game.user.isGM ? Monitor.parar() : tela.encerrar()));
+  ao(MSG.STOP, (m) => (game.user.isGM ? Monitor.parar({ fechar: !m.troca }) : tela.encerrar()));
 
   // cutscene removida: apaga do disco e atualiza o inventário do mestre
   ao(MSG.ESQUECER, async (m) => { await bib.esquecerLocal(m.src); bib.relatarInventario(); });

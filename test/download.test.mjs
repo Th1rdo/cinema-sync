@@ -94,3 +94,25 @@ test("cai a meio DEPOIS de já ter bocados: não recomeça do zero com pedido ú
   };
   await assert.rejects(baixarSegmentado("v.mp4", { fetchFn, segmento: 16_000, pausa: semEspera }), /Failed to fetch/);
 });
+
+import { pausarDownloads, retomarDownloads } from "../scripts/preload.js";
+
+test("durante uma cena o download para entre bocados e retoma no fim", async () => {
+  const ficheiro = new Uint8Array(20);
+  let pedidos = 0;
+  const fetchFn = async (_src, opts = {}) => {
+    if (opts.method === "HEAD") return new Response(null, { status: 200, headers: { "content-length": "20" } });
+    pedidos++;
+    const [, a, b] = /bytes=(\d+)-(\d+)/.exec(opts.headers.Range);
+    const fatia = ficheiro.slice(Number(a), Math.min(Number(b) + 1, 20));
+    return new Response(fatia, { status: 206, headers: { "content-range": `bytes ${a}-${b}/20` } });
+  };
+  pausarDownloads();
+  const p = baixarSegmentado("x.mp4", { fetchFn, segmento: 8, pausa: async () => {} });
+  await new Promise(r => setTimeout(r, 30));
+  assert.equal(pedidos, 0, "nenhum bocado com a cena a passar");
+  retomarDownloads();
+  const blob = await p;
+  assert.equal(blob.size, 20);
+  assert.equal(pedidos, 3);
+});

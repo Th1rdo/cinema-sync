@@ -172,10 +172,7 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
       const t = Math.max(0, (serverNow() - ex.startAt) / 1000);
       if (texto) texto.textContent = duracao ? `${mmss(t)} / ${mmss(duracao)}` : mmss(t);
       if (barra && duracao) barra.style.width = `${Math.min(100, 100 * t / duracao)}%`;
-      if (duracao && t > duracao + 2) {                         // acabou pelo relógio
-        clearInterval(this.#relogio);
-        Cinema.terminar();
-      }
+      // o fim pelo relógio é do largar(): funciona mesmo com esta janela fechada
     };
     tick();
     this.#relogio = setInterval(tick, 500);
@@ -196,7 +193,7 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!game.user.isGM) return ui.notifications.warn(game.i18n.localize("CINEMA.Avisos.SoMestre"));
     const item = bib.obter(itemId);
     if (!item) return ui.notifications.warn(game.i18n.localize("CINEMA.Avisos.NaoEncontrada"));
-    if (Cinema.exibicao) Cinema.parar();
+    if (Cinema.exibicao) Cinema.parar({ troca: true });
 
     const audiencia = resolverAudiencia(item, escolha, game.users.contents);
     Cinema.relatos.clear();
@@ -219,22 +216,35 @@ export class Cinema extends HandlebarsApplicationMixin(ApplicationV2) {
     ex.startAt = serverNow() + SYNC.LEAD_MS;
     const item = bib.obter(ex.itemId);
     enviar(MSG.START, { item, startAt: ex.startAt, exibicaoId: ex.exibicaoId, audiencia: ex.audiencia }, { local: true });
+
+    // fim pelo relógio: se um jogador cair a meio, o relato "terminou" dele nunca
+    // chega, e sem isto a exibição ficava "no ar" para sempre
+    if (item?.duracao) {
+      const id = ex.exibicaoId;
+      ex.fim = setTimeout(() => {
+        if (Cinema.exibicao?.exibicaoId === id) Cinema.terminar();
+      }, SYNC.LEAD_MS + item.duracao * 1000 + 2000);
+    }
     Cinema.atualizar();
   }
 
-  /** Encerra para todos. */
-  static parar() {
+  /**
+   * Encerra para todos.
+   * @param {{troca?: boolean}} [o]  troca=true: outra cena vem a seguir — a
+   *   janela do mestre fica aberta em vez de fechar e reabrir
+   */
+  static parar({ troca = false } = {}) {
     const ex = Cinema.exibicao;
-    if (ex) clearTimeout(ex.timer);
+    if (ex) { clearTimeout(ex.timer); clearTimeout(ex.fim); }
     Cinema.exibicao = null;
-    enviar(MSG.STOP, {}, { local: true });
+    enviar(MSG.STOP, { troca }, { local: true });
     Cinema.atualizar();
   }
 
   /** O vídeo acabou: libera o painel (os clientes fecham sozinhos). */
   static terminar() {
     const ex = Cinema.exibicao;
-    if (ex) clearTimeout(ex.timer);
+    if (ex) { clearTimeout(ex.timer); clearTimeout(ex.fim); }
     Cinema.exibicao = null;
     Cinema.atualizar();
   }
@@ -395,8 +405,10 @@ export function ouvirComoMestre() {
       if (ex.estado === "esperando" && !quemAguardar(ex.audiencia, Cinema.inventario, Cinema.relatos, ex.itemId).length) {
         Cinema.largar();
       }
-      // todos terminaram: libera o painel
-      if (ex.estado === "no-ar" && ex.audiencia.length && ex.audiencia.every(id => [PHASE.ENDED, PHASE.LEFT, PHASE.FAILED].includes(Cinema.relatos.get(id)?.phase))) {
+      // todos terminaram (quem se desligou não conta): libera o painel
+      const acabou = (id) => !game.users.get(id)?.active
+        || [PHASE.ENDED, PHASE.LEFT, PHASE.FAILED].includes(Cinema.relatos.get(id)?.phase);
+      if (ex.estado === "no-ar" && ex.audiencia.length && ex.audiencia.every(acabou)) {
         Cinema.terminar();
       }
     }

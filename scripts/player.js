@@ -70,6 +70,7 @@ export class Reprodutor {
   #amostras = [];            // leituras de getVideoPlaybackQuality, uma por segundo
   #ultimaTroca = 0;
   #trocando = false;
+  #novo = null;              // o <video> do degrau de baixo enquanto a troca está a meio
   #destruido = false;
   #onRelato;
   #onFim;
@@ -155,12 +156,16 @@ export class Reprodutor {
     try {
       await v.play();
     } catch (err) {
+      // encerrada durante o play: a recusa é da cena a fechar, não do autoplay
+      if (this.#destruido) return;
       // sem interação prévia o navegador recusa áudio: toca mudo em vez de não tocar
       warn("autoplay com som recusado, tocando mudo:", err.message);
       v.muted = true;
       await v.play().catch(() => {});
+      if (this.#destruido) return;
       this.#onRelato?.({ mudo: true });
     }
+    if (this.#destruido) return;             // senão ficava uma rotina de conferência órfã
 
     // âncora: último uso do serverTime; daqui em diante, relógio local
     this.#ancora = { server: serverNow(), local: performance.now() };
@@ -267,6 +272,9 @@ export class Reprodutor {
     const i = this.#degrau + 1;
     const alvo = this.#escada[i];
     if (!alvo || this.#trocando || this.#destruido || !this.#ancora) return;
+    // nos últimos segundos não compensa: a troca apontaria para depois do fim
+    const duracao = this.#v.duration;
+    if (Number.isFinite(duracao) && this.#esperado() > duracao - 10) return;
 
     this.#trocando = true;
     this.#ultimaTroca = performance.now();
@@ -281,6 +289,7 @@ export class Reprodutor {
       if (this.#destruido) throw new Error("cena encerrada");
 
       novo = this.#criarVideo(novoUrl, { volume: 0, mudo: velho.muted });
+      this.#novo = novo;
       novo.style.opacity = "0";
       this.#palco.appendChild(novo);
 
@@ -289,12 +298,22 @@ export class Reprodutor {
       await prontoPara(novo, 8000);
       if (this.#destruido || velho !== this.#v) throw new Error("cena mudou");
 
+      // rede lenta: ficou pronto depois de a mesa passar aquele ponto. Aponta
+      // outra vez, mais à frente, em vez de entrar atrasado em relação à mesa
+      if (novo.currentTime < this.#esperado()) {
+        novo.currentTime = this.#esperado() + 2.5;
+        await prontoPara(novo, 8000);
+        if (this.#destruido || velho !== this.#v) throw new Error("cena mudou");
+      }
+
       // espera o relógio da mesa chegar ao ponto onde o novo está parado
       const falta = (novo.currentTime - this.#esperado()) * 1000;
       if (falta > 0) await new Promise(r => setTimeout(r, falta));
+      if (this.#destruido) throw new Error("cena encerrada");
       await novo.play();
 
       await crossfade(velho, novo, this.#volume, 300);
+      if (this.#destruido) throw new Error("cena encerrada");
 
       // o novo passa a ser o vídeo da cena
       this.#v = novo;
@@ -305,6 +324,11 @@ export class Reprodutor {
       novo.style.transition = "";
       novo.style.opacity = "";                  // volta a obedecer ao CSS (fade de saída no fim)
       novo.classList.add("cinema-no-ar");
+      this.#novo = null;
+      // degrau novo, conta nova: volta a tentar a sincronia (se ainda assim
+      // encravar, o modo fluidez volta e desce mais um degrau)
+      this.#fluidez = false;
+      this.#saltos = [];
 
       velho.pause();
       velho.removeAttribute("src");
@@ -314,17 +338,22 @@ export class Reprodutor {
 
       this.#onTroca?.(alvo);
       this.#onRelato?.({ versao: `${alvo.altura}p`, original: false, trocou: true });
+      this.#conferir("troca");                  // corrige o que tiver ficado de desvio
     } catch (err) {
       warn(`troca para ${alvo.altura}p abandonada: ${err.message}`);
       if (novo) { novo.pause(); novo.removeAttribute("src"); novo.load(); novo.remove(); }
       if (novoUrl && novoUrl !== this.#url) soltar(novoUrl);
     } finally {
+      this.#novo = null;
       this.#trocando = false;
     }
   }
 
   set volume(x) { this.#volume = x; this.#v.volume = x; }
-  desmutar() { this.#v.muted = false; }
+  desmutar() {
+    this.#v.muted = false;
+    if (this.#novo) this.#novo.muted = false;   // clique durante uma troca: o som segue para o degrau novo
+  }
   get mudo() { return this.#v.muted; }
 
   destruir() {
@@ -332,7 +361,9 @@ export class Reprodutor {
     this.#cancelar?.();
     clearInterval(this.#loop);
     document.removeEventListener("visibilitychange", this.#onVisibilidade);
-    for (const v of this.#palco?.querySelectorAll("video") ?? []) {
+    // só os vídeos DESTE reprodutor: o palco do monitor é reaproveitado entre cenas
+    for (const v of [this.#v, this.#novo]) {
+      if (!v) continue;
       v.pause();
       v.removeAttribute("src");
       v.load();                     // solta o decodificador na hora

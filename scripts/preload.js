@@ -37,6 +37,22 @@ export async function temGuardado(src) {
 }
 
 // ------------------------------------------------------------------ download
+/**
+ * Durante uma cena, os downloads param entre bocados: quem vê a cena pela rede
+ * (começou antes de acabar de baixar) fica com a banda toda. Retomam no fim.
+ */
+let pausas = 0;
+let portao = null;           // Promise que só se resolve quando as pausas acabam
+let abrirPortao = null;
+export function pausarDownloads() {
+  if (pausas++ === 0) portao = new Promise(r => (abrirPortao = r));
+}
+export function retomarDownloads() {
+  if (pausas === 0 || --pausas > 0) return;
+  abrirPortao();
+  portao = null;
+}
+
 const esperar = (ms) => new Promise(r => setTimeout(r, ms));
 const valeTentarDeNovo = (status) => !status || status >= 500 || status === 408 || status === 429;
 
@@ -78,6 +94,7 @@ export async function baixarSegmentado(src, { fetchFn = fetch, onProgress = () =
   let tipo = "video/mp4";
 
   while (!total || recebido < total) {
+    if (portao) await portao;
     const fim = recebido + segmento - 1;
     let resp;
     try {
@@ -132,7 +149,16 @@ async function baixarInteiro(src, { fetchFn, onProgress, pausa }) {
  * Baixa e guarda. Disco primeiro; se o disco recusar (quota, modo privado),
  * guarda em memória — o vídeo toca na mesma.
  */
-export async function guardar(src, onProgress = () => {}) {
+const emCurso = new Map();   // src → Promise: o mesmo ficheiro nunca baixa duas vezes em paralelo
+
+export function guardar(src, onProgress = () => {}) {
+  if (emCurso.has(src)) return emCurso.get(src);
+  const p = guardarAgora(src, onProgress).finally(() => emCurso.delete(src));
+  emCurso.set(src, p);
+  return p;
+}
+
+async function guardarAgora(src, onProgress) {
   if (await temGuardado(src)) { onProgress(1, 0); return "cache"; }
   pedirPersistencia();
 
@@ -154,6 +180,8 @@ export async function guardar(src, onProgress = () => {}) {
   memoria.set(src, URL.createObjectURL(blob));
   return "memoria";
 }
+
+export const baixando = (src) => emCurso.has(src);
 
 /** URL para o <video>: disco ou memória se houver, senão a origem (streaming). */
 export async function urlParaTocar(src) {
